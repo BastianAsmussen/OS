@@ -4,6 +4,7 @@ My very own OS in Rust!
 ## Building
 ```bash
 $ cargo build
+$ cargo bootimage
 ```
 
 ## Testing
@@ -13,5 +14,5 @@ $ cargo test
 
 ## Running in QEMU
 ```bash
-$ qemu-system-x86_64 -drive format=raw,file=target/x86_64-cristian_os/debug/bootimage-cristian_os.bin
+$ qemu-system-x86_64 -drive format=raw,file=target/x86_64-basic_os/debug/bootimage-basic_os.bin
 ```
