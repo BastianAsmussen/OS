@@ -7,7 +7,7 @@
 use core::panic::PanicInfo;
 use basic_os::println;
 
-const OS_NAME: &str = "Basic OS";
+const OS_NAME: &str = "Cristian OS";
 const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[no_mangle]
@@ -18,11 +18,14 @@ pub extern "C" fn _start() -> ! {
     // Initialize the kernel, and then run the tests.
     basic_os::init();
     
-    println!("Initialized in {}ms!", 0);
+    // Print the time it took to initialize the kernel.
+    println!("Initialized in {} ms!", -1);
     println!("Kernel Version: {}", KERNEL_VERSION);
     
     #[cfg(test)]
     test_main();
+    
+    println!("It did not crash!");
     
     // Infinite loop to prevent the kernel from exiting.
     loop {}
