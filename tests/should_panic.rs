@@ -1,15 +1,15 @@
 #![no_std]
 #![no_main]
 
+use basic_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
 use core::panic::PanicInfo;
-
-use basic_os::{exit_qemu, QemuExitCode, serial_print, serial_println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     should_fail();
     serial_println!("[test did not panic]");
     exit_qemu(QemuExitCode::Failed);
+    
     loop {}
 }
 
@@ -22,5 +22,6 @@ fn should_fail() {
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("[ok]");
     exit_qemu(QemuExitCode::Success);
+    
     loop {}
 }

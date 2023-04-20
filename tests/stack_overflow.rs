@@ -2,12 +2,10 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+use basic_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
 use core::panic::PanicInfo;
-
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-
-use basic_os::{exit_qemu, QemuExitCode, serial_print, serial_println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -36,7 +34,7 @@ lazy_static! {
                 .set_handler_fn(test_double_fault_handler)
                 .set_stack_index(basic_os::gdt::DOUBLE_FAULT_IST_INDEX);
         }
-
+        
         idt
     };
 }
