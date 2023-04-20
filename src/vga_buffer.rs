@@ -10,7 +10,7 @@ lazy_static! {
     /// Used by the `print!` and `println!` macros.
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -128,6 +128,7 @@ impl Writer {
                 self.buffer.chars[row - 1][col].write(character);
             }
         }
+        
         self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
@@ -141,6 +142,44 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
         }
+    }
+    
+    /// Set the foreground color of this `ColorCode` to the given color.
+    ///
+    /// # Logic
+    /// It sets the foreground color of the color code to the given color by setting the 4 least significant bits to 0
+    /// and then shifting the color to the left by 4 bits.
+    ///
+    /// # Example
+    /// ```rust
+    /// use basic_os::vga_buffer::Color;
+    ///
+    /// let mut color_code = ColorCode::new(Color::White, Color::Black);
+    ///
+    /// color_code.set_foreground(Color::Blue);
+    /// assert_eq!(color_code.0, 0x01);
+    /// ```
+    pub fn set_foreground(&mut self, color: Color) {
+        self.color_code.0 = (self.color_code.0 & 0xf0) | (color as u8);
+    }
+    
+    /// Set the background color of this `ColorCode` to the given color.
+    ///
+    /// # Logic
+    /// It sets the background color of the color code to the given color by setting the 4 most significant bits to 0
+    /// and then shifting the color to the left by 4 bits.
+    ///
+    /// # Example
+    /// ```rust
+    /// use basic_os::vga_buffer::Color;
+    ///
+    /// let mut color_code = ColorCode::new(Color::White, Color::Black);
+    ///
+    /// color_code.set_background(Color::Blue);
+    /// assert_eq!(color_code.0, 0x10);
+    /// ```
+    pub fn set_background(&mut self, color: Color) {
+        self.color_code.0 = (self.color_code.0 & 0x0f) | ((color as u8) << 4);
     }
 }
 
@@ -192,3 +231,5 @@ fn test_println_output() {
         assert_eq!(char::from(screen_char.ascii_character), c);
     }
 }
+
+// Change the color of the text to red on black.

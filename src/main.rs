@@ -1,31 +1,30 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(cristian_os::test_runner)]
+#![test_runner(basic_os::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
+use basic_os::println;
 
-use cristian_os::println;
-
+const OS_NAME: &str = "Basic OS";
 const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    println!("Cristian OS booted!");
+    
+    println!("Initializing {}...", OS_NAME);
+    
+    // Initialize the kernel, and then run the tests.
+    basic_os::init();
+    
+    println!("Initialized in {}ms!", 0);
     println!("Kernel Version: {}", KERNEL_VERSION);
-    
-    println!("Hva' så bøsser?!");
-    
-    cristian_os::init();
-    
-    // invoke a breakpoint exception
-    x86_64::instructions::interrupts::int3();
     
     #[cfg(test)]
     test_main();
     
-    println!("It did not crash!");
+    // Infinite loop to prevent the kernel from exiting.
     loop {}
 }
 
@@ -34,16 +33,13 @@ pub extern "C" fn _start() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
+    
     loop {}
 }
 
+/// This function is for testing the panic handler.
 #[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    cristian_os::test_panic_handler(info)
-}
-
-#[test_case]
-fn trivial_assertion() {
-    assert_eq!(1, 1);
+    basic_os::test_panic_handler(info)
 }

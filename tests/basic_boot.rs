@@ -1,11 +1,12 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(cristian_os::test_runner)]
+#![test_runner(basic_os::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use cristian_os::println;
 use core::panic::PanicInfo;
+
+use basic_os::println;
 
 #[no_mangle] // don't mangle the name of this function
 pub extern "C" fn _start() -> ! {
@@ -16,7 +17,7 @@ pub extern "C" fn _start() -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    cristian_os::test_panic_handler(info)
+    basic_os::test_panic_handler(info)
 }
 
 #[test_case]
