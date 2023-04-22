@@ -4,14 +4,28 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(alloc_error_handler)]
+#![feature(const_mut_refs)]
+
+extern crate alloc;
 
 use core::panic::PanicInfo;
+
+#[cfg(test)]
+use bootloader::{BootInfo, entry_point};
 
 pub mod gdt;
 pub mod interrupts;
 pub mod serial;
 pub mod vga_buffer;
 pub mod memory;
+pub mod allocator;
+pub mod task;
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("Allocation Error: {:?}", layout)
+}
 
 pub fn init() {
     // Initialize the global descriptor table.
@@ -86,9 +100,6 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info)
 }
-
-#[cfg(test)]
-use bootloader::{entry_point, BootInfo};
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
