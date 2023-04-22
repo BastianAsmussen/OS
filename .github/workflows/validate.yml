@@ -1,4 +1,3 @@
-
 name: Build
 
 on: [ push ]
@@ -8,11 +7,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             # Build the code.
-            -   uses: actions/checkout@v2
             -   uses: actions-rs/toolchain@v1
                 with:
                     toolchain: nightly
                     override: true
+                    components: rust-src
             
             # Run the tests.
             -   uses: actions-rs/cargo@v1
