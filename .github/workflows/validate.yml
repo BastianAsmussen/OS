@@ -1,0 +1,24 @@
+
+name: Build
+
+on: [ push ]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            # Build the code.
+            -   uses: actions/checkout@v2
+            -   uses: actions-rs/toolchain@v1
+                with:
+                    toolchain: nightly
+                    override: true
+            
+            # Run the tests.
+            -   uses: actions-rs/cargo@v1
+                with:
+                    command: build
+            -   uses: actions-rs/cargo@v1
+                with:
+                    command: test
+                    
