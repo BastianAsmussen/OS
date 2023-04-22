@@ -45,7 +45,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     
     let mut executor = Executor::new();
     
-    executor.spawn(Task::new(example_task()));
     executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
@@ -63,19 +62,4 @@ fn panic(info: &PanicInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     basic_os::test_panic_handler(info)
-}
-
-#[test_case]
-#[allow(clippy::eq_op)] // allow trivial assertion
-fn trivial_assertion() {
-    assert_eq!(1, 1);
-}
-
-async fn async_number() -> u32 {
-    42
-}
-
-async fn example_task() {
-    let number = async_number().await;
-    println!("async number: {}", number);
 }
