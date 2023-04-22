@@ -10,7 +10,7 @@ $ cargo bootimage
 ## Running
 Builds source and bootloader and runs it through QEMU.
 ```bash
-# cargo run
+$ cargo run
 ```
 
 ## QEMU
