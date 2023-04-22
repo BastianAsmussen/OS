@@ -7,12 +7,19 @@ $ cargo build
 $ cargo bootimage
 ```
 
-## Testing
+## Running
+Builds source and bootloader and runs it through QEMU.
 ```bash
-$ cargo test
+$ cargo run
 ```
 
-## Running in QEMU
+## QEMU
 ```bash
 $ qemu-system-x86_64 -drive format=raw,file=target/x86_64-basic_os/debug/bootimage-basic_os.bin
+```
+
+## Testing
+Runs all tests in the `tests` folder.
+```bash
+$ cargo test
 ```
