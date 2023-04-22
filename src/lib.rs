@@ -22,11 +22,6 @@ pub mod memory;
 pub mod allocator;
 pub mod task;
 
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("Allocation Error: {:?}", layout)
-}
-
 pub fn init() {
     // Initialize the global descriptor table.
     gdt::init();
@@ -45,6 +40,11 @@ pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
     }
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("Allocation Error: {:?}", layout)
 }
 
 pub trait Testable {
@@ -104,7 +104,7 @@ fn panic(info: &PanicInfo) -> ! {
 #[cfg(test)]
 entry_point!(test_kernel_main);
 
-/// Entry point for `cargo test`
+/// Entry point for `cargo test`.
 #[cfg(test)]
 #[no_mangle]
 fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {

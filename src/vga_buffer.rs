@@ -99,6 +99,7 @@ impl Writer {
                     ascii_character: byte,
                     color_code,
                 });
+                
                 self.column_position += 1;
             }
         }
@@ -112,9 +113,9 @@ impl Writer {
     fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
-                // printable ASCII byte or newline
+                // Printable ASCII byte or newline.
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
-                // not part of printable ASCII range
+                // Not part of printable ASCII range.
                 _ => self.write_byte(0xfe),
             }
         }
@@ -128,6 +129,7 @@ impl Writer {
                 self.buffer.chars[row - 1][col].write(character);
             }
         }
+        
         self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
@@ -193,10 +195,10 @@ fn test_println_output() {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
     
-    let s = "Some test string that fits on a single line";
+    let s = "Some test string that fits on a single line.";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        writeln!(writer, "\n{}", s).expect("writeln failed");
+        writeln!(writer, "\n{}", s).expect("writeln failed!");
         for (i, c) in s.chars().enumerate() {
             let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
             assert_eq!(char::from(screen_char.ascii_character), c);

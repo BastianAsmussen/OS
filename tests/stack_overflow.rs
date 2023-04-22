@@ -2,10 +2,12 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-use basic_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
 use core::panic::PanicInfo;
+
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+
+use basic_os::{exit_qemu, QemuExitCode, serial_print, serial_println};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -14,7 +16,7 @@ pub extern "C" fn _start() -> ! {
     basic_os::gdt::init();
     init_test_idt();
     
-    // trigger a stack overflow
+    // Trigger a stack overflow.
     stack_overflow();
     
     panic!("Execution continued after stack overflow");
@@ -22,8 +24,10 @@ pub extern "C" fn _start() -> ! {
 
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
-    stack_overflow(); // for each recursion, the return address is pushed
-    volatile::Volatile::new(0).read(); // prevent tail recursion optimizations
+    // For each recursion, the return address is pushed.
+    stack_overflow();
+    // Prevent tail recursion optimizations.
+    volatile::Volatile::new(0).read();
 }
 
 lazy_static! {
@@ -48,6 +52,7 @@ extern "x86-interrupt" fn test_double_fault_handler(
     _error_code: u64,
 ) -> ! {
     serial_println!("[ok]");
+    
     exit_qemu(QemuExitCode::Success);
     
     loop {}

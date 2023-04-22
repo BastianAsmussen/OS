@@ -11,6 +11,7 @@ use alloc::vec::Vec;
 use core::panic::PanicInfo;
 
 use bootloader::{BootInfo, entry_point};
+
 use basic_os::allocator::HEAP_SIZE;
 
 entry_point!(main);
@@ -54,6 +55,7 @@ fn simple_allocation() {
 fn large_vec() {
     let n = 1_000;
     let mut vec = Vec::new();
+    
     for i in 0..n {
         vec.push(i);
     }

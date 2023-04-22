@@ -5,10 +5,6 @@
 #![reexport_test_harness_main = "test_main"]
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::vec;
-use alloc::vec::Vec;
 use core::panic::PanicInfo;
 
 use bootloader::{BootInfo, entry_point};
@@ -16,7 +12,6 @@ use bootloader::{BootInfo, entry_point};
 use basic_os::{memory, println};
 use basic_os::task::{keyboard, Task};
 use basic_os::task::executor::Executor;
-use basic_os::task::simple_executor::SimpleExecutor;
 
 const OS_NAME: &str = "Cristian OS";
 const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");

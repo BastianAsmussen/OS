@@ -85,7 +85,8 @@ extern "x86-interrupt" fn page_fault_handler(stack_frame: InterruptStackFrame, e
 extern "x86-interrupt" fn timer_interrupt_handler(
     _stack_frame: InterruptStackFrame)
 {
-    print!(".");
+    // The reason we print a dot is because the timer interrupt is called.
+    // print!(".");
     
     unsafe {
         PICS.lock()
