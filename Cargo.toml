@@ -20,7 +20,7 @@ x86_64 = "0.14.2"                                                      # Provide
 uart_16550 = "0.2.0"                                                   # Serial port
 pic8259 = "0.10.1"                                                     # Programmable Interrupt Controller
 pc-keyboard = "0.7.0"                                                  # Handles keyboard input
-linked_list_allocator = "0.9.0"                                        # Allocator
+linked_list_allocator = "0.10.5"                                       # Allocator
 
 [dependencies.lazy_static]
 version = "1.0"

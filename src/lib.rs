@@ -4,7 +4,6 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-#![feature(alloc_error_handler)]
 #![feature(const_mut_refs)]
 
 extern crate alloc;
@@ -40,11 +39,6 @@ pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
     }
-}
-
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("Allocation Error: {:?}", layout)
 }
 
 pub trait Testable {
