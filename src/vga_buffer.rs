@@ -4,6 +4,11 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
 
+/// The height of the text buffer (normally 25 lines).
+const BUFFER_HEIGHT: usize = 25;
+/// The width of the text buffer (normally 80 columns).
+const BUFFER_WIDTH: usize = 80;
+
 lazy_static! {
     /// A global `Writer` instance that can be used for printing to the VGA text buffer.
     ///
@@ -45,6 +50,18 @@ struct ColorCode(u8);
 
 impl ColorCode {
     /// Create a new `ColorCode` with the given foreground and background colors.
+    ///
+    /// The foreground and background colors are combined to form a single byte.
+    /// The first 4 bits are the background color and the last 4 bits are the foreground color.
+    ///
+    /// # Logic
+    /// We shift the background color 4 bits to the left and then OR it with the foreground to get the final color code.
+    ///
+    /// ### Example
+    /// background = 0b0001 (blue), foreground = 0b0010 (green) => 0b00010010 (blue on green)
+    ///
+    /// ### Formula
+    /// (background << 4) | foreground = (0b0001 << 4) | 0b0010 = 0b00010010
     fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
@@ -58,10 +75,22 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
-/// The height of the text buffer (normally 25 lines).
-const BUFFER_HEIGHT: usize = 25;
-/// The width of the text buffer (normally 80 columns).
-const BUFFER_WIDTH: usize = 80;
+impl ScreenChar {
+    /// Create a new `ScreenChar` with the given ASCII character and `ColorCode`.
+    fn new(ascii_character: u8, color_code: ColorCode) -> ScreenChar {
+        ScreenChar {
+            ascii_character,
+            color_code,
+        }
+    }
+    
+    fn read(self) -> ScreenChar {
+        ScreenChar {
+            ascii_character: self.ascii_character,
+            color_code: self.color_code,
+        }
+    }
+}
 
 /// A structure representing the VGA text buffer.
 #[repr(transparent)]
@@ -166,6 +195,11 @@ macro_rules! println {
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
+#[macro_export]
+macro_rules! clear {
+    () => ($crate::vga_buffer::_clear());
+}
+
 /// Prints the given formatted string to the VGA text buffer through the global `WRITER` instance.
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
@@ -175,6 +209,20 @@ pub fn _print(args: fmt::Arguments) {
     // We need to disable interrupts to avoid a deadlock when the VGA text buffer is used.
     interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
+    });
+}
+
+/// Clears the VGA text buffer by overwriting it with blank characters.
+#[doc(hidden)]
+pub fn _clear() {
+    use x86_64::instructions::interrupts;
+    
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        for row in 0..BUFFER_HEIGHT {
+            writer.clear_row(row);
+        }
+        writer.column_position = 0;
     });
 }
 
@@ -199,9 +247,34 @@ fn test_println_output() {
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         writeln!(writer, "\n{}", s).expect("writeln failed!");
+        
         for (i, c) in s.chars().enumerate() {
             let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
             assert_eq!(char::from(screen_char.ascii_character), c);
         }
     });
+}
+
+#[test_case]
+fn test_colors() {
+    
+    // Set the foreground and background colors.
+    let fg_color = Color::White;
+    let bg_color = Color::Black;
+    
+    // Test printing.
+    let message = "Hello, world!";
+    let color_code = ColorCode::new(fg_color, bg_color);
+    let mut writer = Writer {
+        column_position: 0,
+        color_code,
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    };
+    
+    writer.write_string(message);
+    
+    // Add an assertion to test the color of the first character.
+    let buffer = unsafe { &*(0xb8000 as *const Buffer) };
+    let screen_char = buffer.chars[BUFFER_HEIGHT - 1][0].read();
+    assert_eq!(screen_char.color_code, color_code);
 }
