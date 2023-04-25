@@ -5,6 +5,7 @@ use core::task::{Context, Poll};
 
 pub mod simple_executor;
 pub mod keyboard;
+pub mod primes;
 pub mod executor;
 
 pub struct Task {

@@ -75,23 +75,6 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
-impl ScreenChar {
-    /// Create a new `ScreenChar` with the given ASCII character and `ColorCode`.
-    fn new(ascii_character: u8, color_code: ColorCode) -> ScreenChar {
-        ScreenChar {
-            ascii_character,
-            color_code,
-        }
-    }
-    
-    fn read(self) -> ScreenChar {
-        ScreenChar {
-            ascii_character: self.ascii_character,
-            color_code: self.color_code,
-        }
-    }
-}
-
 /// A structure representing the VGA text buffer.
 #[repr(transparent)]
 struct Buffer {
