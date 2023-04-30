@@ -43,6 +43,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
     
+    println!("Hello, world!");
+    
     let mut executor = Executor::new();
     
     executor.spawn(Task::new(keyboard::print_keypress()));
