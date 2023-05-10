@@ -29,11 +29,10 @@ jobs:
         with:
           command: build
       
-      - name: Run cargo build bootimage
+      - name: Run cargo bootimage
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: bootimage
+          command: bootimage
           
       - name: Run cargo test
         uses: actions-rs/cargo@v1
