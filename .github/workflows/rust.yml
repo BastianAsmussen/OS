@@ -22,7 +22,7 @@ jobs:
           profile: minimal # Minimal profile is enough for building.
           toolchain: nightly # Install latest nightly toolchain.
           override: true # Override existing toolchain if it exists.
-          components: rust-src # Install rust-src component.
+          components: rust-src, bootloader # Install rust-src and bootloader components.
           
       - name: Run cargo build
         uses: actions-rs/cargo@v1
