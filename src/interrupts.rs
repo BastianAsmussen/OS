@@ -20,10 +20,20 @@ pub enum InterruptIndex {
 }
 
 impl InterruptIndex {
-    fn as_u8(self) -> u8 {
+    /// Convert the interrupt index to a `u8`.
+    ///
+    /// # Returns
+    ///
+    /// * `u8` - The interrupt index as a `u8`.
+    const fn as_u8(self) -> u8 {
         self as u8
     }
-    
+
+    /// Convert the interrupt index to a `usize`.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The interrupt index as a `usize`.
     fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
@@ -36,28 +46,28 @@ pub fn init_idt() {
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
-        
+
         // Set the breakpoint handler.
         idt.breakpoint.set_handler_fn(breakpoint_handler);
-        
+
         // Set the double fault handler.
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
-        
+
         // Set the page fault handler.
         idt.page_fault.set_handler_fn(page_fault_handler);
-        
+
         // Add the timer interrupt handler.
         idt[InterruptIndex::Timer.as_usize()]
             .set_handler_fn(timer_interrupt_handler);
-        
+
         // Add the keyboard interrupt handler.
         idt[InterruptIndex::Keyboard.as_usize()]
             .set_handler_fn(keyboard_interrupt_handler);
-        
+
         idt
     };
 }
@@ -73,36 +83,35 @@ extern "x86-interrupt" fn double_fault_handler(
     panic!("Double Fault Exception!\n{:#?}", stack_frame);
 }
 
-extern "x86-interrupt" fn page_fault_handler(stack_frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
     println!("Page Fault Exception!");
     println!("Address: {:?}", Cr2::read());
     println!("Error Code: {:?}", error_code);
     println!("{:#?}", stack_frame);
-    
+
     hlt_loop();
 }
 
-extern "x86-interrupt" fn timer_interrupt_handler(
-    _stack_frame: InterruptStackFrame)
-{
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     // The reason we print a dot is because the timer interrupt is called.
     // print!(".");
-    
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
 }
 
-extern "x86-interrupt" fn keyboard_interrupt_handler(
-    _stack_frame: InterruptStackFrame)
-{
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     use x86_64::instructions::port::Port;
-    
+
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
     crate::task::keyboard::add_scancode(scancode);
-    
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());

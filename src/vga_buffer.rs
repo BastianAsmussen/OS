@@ -62,12 +62,19 @@ impl ColorCode {
     ///
     /// ### Formula
     /// (background << 4) | foreground = (0b0001 << 4) | 0b0010 = 0b00010010
-    fn new(foreground: Color, background: Color) -> ColorCode {
-        ColorCode((background as u8) << 4 | (foreground as u8))
+    const fn new(foreground: Color, background: Color) -> Self {
+        Self((background as u8) << 4 | (foreground as u8))
     }
 }
 
 /// A screen character in the VGA text buffer, consisting of an ASCII character and a `ColorCode`.
+///
+/// The `repr(C)` attribute guarantees that the structs fields are laid out exactly like in a C struct.
+///
+/// # Fields
+///
+/// * `ascii_character`: The ASCII character.
+/// * `color_code`: The color code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
@@ -76,6 +83,10 @@ struct ScreenChar {
 }
 
 /// A structure representing the VGA text buffer.
+///
+/// # Fields
+///
+/// * `chars`: A 2D array of `ScreenChar`s.
 #[repr(transparent)]
 struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
@@ -83,8 +94,13 @@ struct Buffer {
 
 /// A writer type that allows writing ASCII bytes and strings to an underlying `Buffer`.
 ///
-/// Wraps lines at `BUFFER_WIDTH`. Supports newline characters and implements the
-/// `core::fmt::Write` trait.
+/// Wraps lines at `BUFFER_WIDTH`. Supports newline characters and implements the `core::fmt::Write` trait.
+///
+/// # Fields
+///
+/// * `column_position`: The current column position.
+/// * `color_code`: The color code.
+/// * `buffer`: The buffer.
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
@@ -95,6 +111,10 @@ impl Writer {
     /// Writes an ASCII byte to the buffer.
     ///
     /// Wraps lines at `BUFFER_WIDTH`. Supports the `\n` newline character.
+    ///
+    /// # Arguments
+    ///
+    /// * `byte`: The byte to write.
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
@@ -102,27 +122,30 @@ impl Writer {
                 if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
-                
+
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
-                
+
                 let color_code = self.color_code;
-                
+
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
                     color_code,
                 });
-                
+
                 self.column_position += 1;
             }
         }
     }
-    
+
     /// Writes the given ASCII string to the buffer.
     ///
-    /// Wraps lines at `BUFFER_WIDTH`. Supports the `\n` newline character. Does **not**
-    /// support strings with non-ASCII characters, since they can't be printed in the VGA text
-    /// mode.
+    /// Wraps lines at `BUFFER_WIDTH`. Supports the `\n` newline character.
+    /// Does **not** support strings with non-ASCII characters, since they can't be printed in the VGA text mode.
+    ///
+    /// # Arguments
+    ///
+    /// * `s`: The string to write.
     fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -133,26 +156,32 @@ impl Writer {
             }
         }
     }
-    
+
     /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
+
                 self.buffer.chars[row - 1][col].write(character);
             }
         }
-        
+
         self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
-    
+
     /// Clears a row by overwriting it with blank characters.
+    ///
+    /// # Arguments
+    ///
+    /// * `row`: The row to clear.
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
             ascii_character: b' ',
             color_code: self.color_code,
         };
+
         for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
         }
@@ -160,8 +189,18 @@ impl Writer {
 }
 
 impl fmt::Write for Writer {
+    /// Writes a string to the VGA text buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `s`: The string to write.
+    ///
+    /// # Returns
+    ///
+    /// * `fmt::Result` - The result of the operation.
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
+
         Ok(())
     }
 }
@@ -179,20 +218,35 @@ macro_rules! println {
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
+/// Clears the VGA text buffer.
 #[macro_export]
 macro_rules! clear {
-    () => ($crate::vga_buffer::_clear());
+    () => {
+        $crate::vga_buffer::_clear()
+    };
 }
 
 /// Prints the given formatted string to the VGA text buffer through the global `WRITER` instance.
+///
+/// # Arguments
+///
+/// * `args`: The arguments to print.
+///
+/// # Panics
+///
+/// * If writing to the VGA text buffer fails.
+#[allow(clippy::expect_used)]
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
-    
+
     // We need to disable interrupts to avoid a deadlock when the VGA text buffer is used.
     interrupts::without_interrupts(|| {
-        WRITER.lock().write_fmt(args).unwrap();
+        WRITER
+            .lock()
+            .write_fmt(args)
+            .expect("Printing to VGA text buffer failed!");
     });
 }
 
@@ -200,12 +254,13 @@ pub fn _print(args: fmt::Arguments) {
 #[doc(hidden)]
 pub fn _clear() {
     use x86_64::instructions::interrupts;
-    
+
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         for row in 0..BUFFER_HEIGHT {
             writer.clear_row(row);
         }
+
         writer.column_position = 0;
     });
 }
@@ -215,6 +270,7 @@ fn test_println_simple() {
     println!("test_println_simple output");
 }
 
+/// Tests that the VGA text buffer is scrolled correctly.
 #[test_case]
 fn test_println_many() {
     for _ in 0..200 {
@@ -222,43 +278,53 @@ fn test_println_many() {
     }
 }
 
+/// Tests that the VGA text buffer is written to correctly.
+///
+/// # Panics
+///
+/// * If `writeln!` fails. This can happen if the VGA text buffer is used in an interrupt handler.
 #[test_case]
 fn test_println_output() {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
-    
+
     let s = "Some test string that fits on a single line.";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        writeln!(writer, "\n{}", s).expect("writeln failed!");
-        
+        writeln!(writer, "\n{s}").expect("writeln failed!");
+
         for (i, c) in s.chars().enumerate() {
             let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+
             assert_eq!(char::from(screen_char.ascii_character), c);
         }
     });
 }
 
+/// Tests that the VGA text buffer colors are set correctly.
+///
+/// # Panics
+///
+/// * If the color on screen is not the same as the color set in the test.
 #[test_case]
 fn test_colors() {
-    
-    // Set the foreground and background colors.
-    let fg_color = Color::White;
-    let bg_color = Color::Black;
-    
+    let foreground = Color::White;
+    let background = Color::Black;
+
     // Test printing.
     let message = "Hello, world!";
-    let color_code = ColorCode::new(fg_color, bg_color);
+    let color_code = ColorCode::new(foreground, background);
     let mut writer = Writer {
         column_position: 0,
         color_code,
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
-    
+
     writer.write_string(message);
-    
+
     // Add an assertion to test the color of the first character.
     let buffer = unsafe { &*(0xb8000 as *const Buffer) };
     let screen_char = buffer.chars[BUFFER_HEIGHT - 1][0].read();
+
     assert_eq!(screen_char.color_code, color_code);
 }

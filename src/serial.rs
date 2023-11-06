@@ -5,17 +5,27 @@ use uart_16550::SerialPort;
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
         let mut serial_port = unsafe { SerialPort::new(0x3F8) };
-        
+
         serial_port.init();
         Mutex::new(serial_port)
     };
 }
 
+/// Prints to the host through the serial interface.
+///
+/// # Arguments
+///
+/// * `args` - The format arguments.
+///
+/// # Panics
+///
+/// * If printing to the serial interface fails.
+#[allow(clippy::expect_used)]
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
-    
+
     interrupts::without_interrupts(|| {
         SERIAL1
             .lock()
@@ -25,6 +35,7 @@ pub fn _print(args: core::fmt::Arguments) {
 }
 
 /// Prints to the host through the serial interface.
+#[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! serial_print {
     ($($arg:tt)*) => {
@@ -33,6 +44,7 @@ macro_rules! serial_print {
 }
 
 /// Prints to the host through the serial interface, appending a newline.
+#[allow(clippy::module_name_repetitions)]
 #[macro_export]
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));
