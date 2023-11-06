@@ -9,24 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "basic_os"
-version = "0.1.1"
-dependencies = [
- "bootloader",
- "conquer-once",
- "crossbeam-queue",
- "futures-util",
- "lazy_static",
- "linked_list_allocator",
- "pc-keyboard",
- "pic8259",
- "spin 0.9.8",
- "uart_16550",
- "volatile 0.3.0",
- "x86_64",
-]
-
-[[package]]
 name = "bit_field"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -108,6 +90,24 @@ dependencies = [
  "futures-task",
  "pin-project-lite",
  "pin-utils",
+]
+
+[[package]]
+name = "kernel"
+version = "0.1.2"
+dependencies = [
+ "bootloader",
+ "conquer-once",
+ "crossbeam-queue",
+ "futures-util",
+ "lazy_static",
+ "linked_list_allocator",
+ "pc-keyboard",
+ "pic8259",
+ "spin 0.9.8",
+ "uart_16550",
+ "volatile 0.3.0",
+ "x86_64",
 ]
 
 [[package]]

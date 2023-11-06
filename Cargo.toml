@@ -1,8 +1,8 @@
 [package]
-name = "basic_os"
-version = "0.1.1"
+name = "kernel"
+version = "0.1.2"
 edition = "2021"
-authors = ["Bastian Almar Wolsgaard Asmussen <bastianasmussen@gmail.com>"]
+authors = ["Bastian Almar Wolsgaard Asmussen <bastian@asmussen.tech>"]
 
 [[test]]
 name = "should_panic"
@@ -14,13 +14,13 @@ harness = false
 
 [dependencies]
 bootloader = { version = "0.9.9", features = ["map_physical_memory"] } # Bootloader
-volatile = "0.3.0"                                                     # Volatile memory
-spin = "0.9.8"                                                         # Spinlock
-x86_64 = "0.14.2"                                                      # Provides the x86_64 target
-uart_16550 = "0.2.0"                                                   # Serial port
-pic8259 = "0.10.1"                                                     # Programmable Interrupt Controller
-pc-keyboard = "0.7.0"                                                  # Handles keyboard input
-linked_list_allocator = "0.10.5"                                       # Allocator
+volatile = "0.3.0"  # Volatile memory
+spin = "0.9.8" # Spinlock
+x86_64 = "0.14.2" # Provides the x86_64 target
+uart_16550 = "0.2.0" # Serial port
+pic8259 = "0.10.1" # Programmable Interrupt Controller
+pc-keyboard = "0.7.0" # Handles keyboard input
+linked_list_allocator = "0.10.5" # Allocator
 
 [dependencies.lazy_static]
 version = "1.0"
