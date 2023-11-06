@@ -13,8 +13,11 @@ use kernel::task::executor::Executor;
 use kernel::task::{keyboard, Task};
 use kernel::{memory, println};
 
-const OS_NAME: &str = "Rust OS";
-const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The name of the operating system.
+pub const OS_NAME: &str = "Rust OS";
+
+/// The version of the kernel.
+pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 entry_point!(kernel_main);
 
@@ -50,11 +53,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_kernel_main();
 
-    println!("Hello, world!");
+    let _ = keyboard::ScancodeStream::new();
 
     let mut executor = Executor::new();
 
-    executor.spawn(Task::new(keyboard::print_keypress()));
+    executor.spawn(Task::new(shell::run()));
+    // executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
 

@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin;
+use x86_64::instructions::port::{PortGeneric, WriteOnlyAccess};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
@@ -116,6 +117,31 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
+}
+
+/// Shuts down the computer.
+///
+/// # Safety
+///
+/// * The computer will shut down.
+#[no_mangle]
+pub extern "C" fn shutdown_interrupt_handler() {
+    // Send the shutdown command to the ACPI.
+    unsafe {
+        let mut port: PortGeneric<u16, WriteOnlyAccess> = PortGeneric::new(0x604);
+
+        port.write(0x2000);
+    }
+}
+
+/// Reboots the computer.
+///
+/// # Safety
+///
+/// * The computer will reboot.
+#[no_mangle]
+pub extern "C" fn reboot_interrupt_handler() {
+    todo!("See https://wiki.osdev.org/Reboot!");
 }
 
 #[test_case]

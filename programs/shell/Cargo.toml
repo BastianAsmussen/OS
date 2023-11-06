@@ -1,0 +1,9 @@
+[package]
+name = "shell"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kernel = { path = "../../kernel" }
+stdlib = { path = "../../stdlib" }
+shutdown = { path = "../shutdown" }
