@@ -5,5 +5,3 @@ edition = "2021"
 
 [dependencies]
 kernel = { path = "../../kernel" }
-stdlib = { path = "../../stdlib" }
-shutdown = { path = "../shutdown" }

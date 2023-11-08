@@ -11,11 +11,22 @@ use x86_64::{
 use fixed_size_block::FixedSizeBlockAllocator;
 
 pub mod bump;
-mod fixed_size_block;
+pub mod fixed_size_block;
 pub mod linked_list;
 
-pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
+/// The start address of the heap in virtual memory.
+///
+/// # Notes
+///
+/// * This is 16 TiB.
+pub const HEAP_START: usize = 0x4000_0000_0000;
+
+/// The size of the heap in bytes.
+///
+/// # Notes
+///
+/// * This is 100 KiB.
+pub const HEAP_SIZE: usize = 100 * 1024;
 
 #[global_allocator]
 static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());
@@ -36,21 +47,17 @@ unsafe impl GlobalAlloc for Dummy {
 ///
 /// # Arguments
 ///
-/// * `mapper` - A mutable reference to the active mapper.
-/// * `frame_allocator` - A mutable reference to the active frame allocator.
+/// * `mapper` - The mapper to use for mapping heap pages.
+/// * `frame_allocator` - The frame allocator to use for allocating heap frames.
 ///
 /// # Returns
 ///
 /// * `Result<(), MapToError<Size4KiB>>` - A result indicating whether the heap initialization succeeded or failed.
 ///
-/// # Safety
-///
-/// * The caller must guarantee that the given heap bounds are valid and that the heap is unused.
-/// * This method must be called only once.
-///
 /// # Errors
 ///
-/// * `MapToError<Size4KiB>` - Indicates that the heap initialization failed.
+/// * If a frame could not be allocated.
+/// * If the heap pages could not be mapped.
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,

@@ -64,7 +64,7 @@ impl Executor {
             waker_cache,
         } = self;
 
-        while let Ok(task_id) = task_queue.pop() {
+        while let Some(task_id) = task_queue.pop() {
             let Some(task) = tasks.get_mut(&task_id) else {
                 continue;
             };

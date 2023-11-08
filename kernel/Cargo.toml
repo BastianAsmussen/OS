@@ -17,15 +17,31 @@ test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "st
 test-success-exit-code = 33 # (0x10 << 1) | 1
 
 [dependencies]
-bootloader = { version = "0.9.9", features = ["map_physical_memory"] } # Bootloader.
-volatile = "0.3.0"  # Volatile memory.
-spin = "0.9.8" # Spinlock.
-x86_64 = "0.14.2" # Provides the x86_64 target.
-uart_16550 = "0.2.0" # Serial port.
-pic8259 = "0.10.1" # Programmable Interrupt Controller.
-pc-keyboard = "0.7.0" # Handles keyboard input.
-linked_list_allocator = "0.10.5" # Allocator.
-lazy_static = { version = "1.0", features = ["spin_no_std"] } # Lazy statics.
-crossbeam-queue = { version = "0.2.1", default-features = false, features = ["alloc"] } # Crossbeam queue.
-conquer-once = { version = "0.2.0", default-features = false } # Concurrency primitives.
+# Bootloader.
+bootloader = { version = "0.9.23", features = ["map_physical_memory"] }
+# Volatile memory access.
+volatile = "0.3.0"
+# Spinlocks.
+spin = "0.9.8"
+# Provides the x86_64 target.
+x86_64 = "0.14.2"
+# Serial port.
+uart_16550 = "0.3.0"
+# Programmable Interrupt Controller.
+pic8259 = "0.10.1"
+# Handles keyboard input.
+pc-keyboard = "0.7.0"
+# Allocator.
+linked_list_allocator = "0.10.5"
+# Lazy statics.
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+# Crossbeam queue.
+crossbeam-queue = { version = "0.3.8", default-features = false, features = ["alloc"] }
+# Concurrency primitives.
+conquer-once = { version = "0.4.0", default-features = false }
+# Async primitives.
 futures-util = { version = "0.3.4", default-features = false, features = ["alloc"] }
+# Error handling.
+thiserror-no-std = "2.0.2"
+# Binary execution.
+object = "0.32.1"

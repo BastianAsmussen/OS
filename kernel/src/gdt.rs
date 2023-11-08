@@ -41,11 +41,17 @@ struct Selectors {
     tss_selector: SegmentSelector,
 }
 
+/// Initializes the global descriptor table.
+///
+/// # Safety
+///
+/// * This function is unsafe because the caller must guarantee that the global descriptor table is not used while it is being reloaded.
 pub fn init() {
     use x86_64::instructions::segmentation::{Segment, CS};
     use x86_64::instructions::tables::load_tss;
 
     GDT.0.load();
+
     unsafe {
         CS::set_reg(GDT.1.code_selector);
         load_tss(GDT.1.tss_selector);

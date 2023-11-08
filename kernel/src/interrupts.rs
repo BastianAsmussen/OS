@@ -40,6 +40,7 @@ impl InterruptIndex {
     }
 }
 
+/// Initializes the interrupt descriptor table.
 pub fn init_idt() {
     IDT.load();
 }
@@ -97,9 +98,6 @@ extern "x86-interrupt" fn page_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    // The reason we print a dot is because the timer interrupt is called.
-    // print!(".");
-
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
@@ -111,7 +109,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-    crate::task::keyboard::add_scancode(scancode);
+    crate::system::task::keyboard::add_scancode(scancode);
 
     unsafe {
         PICS.lock()

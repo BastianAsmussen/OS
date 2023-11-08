@@ -17,7 +17,6 @@ pub async fn run() {
         print!("> ");
 
         let mut input = String::new();
-        kernel::task::keyboard::read_line(&mut input).await;
 
         let mut parts = input.split_whitespace();
         let Some(command) = parts.next() else {
@@ -40,7 +39,6 @@ pub async fn run() {
                 println!("Exiting shell...");
                 break;
             }
-            "shutdown" => shutdown::run(&args),
             _ => {
                 println!("{command}: command not found!");
             }
