@@ -2,6 +2,7 @@ use alloc::task::Wake;
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::task::{Context, Poll, Waker};
 
+use crate::errors::Error;
 use crossbeam_queue::ArrayQueue;
 
 use super::{Task, TaskId};
@@ -38,19 +39,27 @@ impl Executor {
     ///
     /// * `task`: The task to spawn.
     ///
-    /// # Panics
+    /// # Returns
     ///
-    /// * If a task with the same ID already exists.
-    /// * If the queue is full.
+    /// * `Result<TaskId, Error>` - The ID of the spawned task.
+    ///
+    /// # Errors
+    ///
+    /// * If the task ID is already in use.
+    /// * If the task queue is full.
     #[allow(clippy::expect_used)]
-    pub fn spawn(&mut self, task: Task) {
+    pub fn spawn(&mut self, task: Task) -> Result<TaskId, Error> {
         let task_id = task.id;
-        assert!(
-            self.tasks.insert(task.id, task).is_none(),
-            "Task with same ID already in tasks!"
-        );
+        match self.tasks.insert(task_id, task) {
+            Some(_) => {
+                return Err(Error::Internal(
+                    "Task with same ID already in tasks!".into(),
+                ))
+            }
+            None => self.task_queue.push(task_id)?,
+        }
 
-        self.task_queue.push(task_id).expect("Task queue full!");
+        Ok(task_id)
     }
 
     /// Runs all ready tasks.

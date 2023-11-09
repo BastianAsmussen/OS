@@ -8,6 +8,7 @@ extern crate alloc;
 use core::panic::PanicInfo;
 
 use bootloader::{entry_point, BootInfo};
+use kernel::clock::uptime;
 
 use kernel::println;
 use kernel::system::task::{keyboard, Task};
@@ -38,7 +39,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     println!("[INFO]: Rust OS v{OS_VERSION} initialized successfully!");
 
-    executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
 

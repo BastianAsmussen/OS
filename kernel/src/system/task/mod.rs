@@ -48,7 +48,7 @@ impl Task {
 
 /// A task ID.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct TaskId(u64);
+pub(crate) struct TaskId(u64);
 
 impl TaskId {
     /// Creates a new `TaskId`.

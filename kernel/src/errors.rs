@@ -1,7 +1,10 @@
+use crate::system;
+use crate::system::task::{Task, TaskId};
 use alloc::format;
 use alloc::string::String;
 use core::alloc::LayoutError;
 use core::num::TryFromIntError;
+use crossbeam_queue::ArrayQueue;
 use thiserror_no_std::Error;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::Size4KiB;
@@ -26,6 +29,8 @@ pub enum Error {
     InvalidRegister(String),
     #[error("Conversion Error: {0}")]
     Conversion(String),
+    #[error("Task Error: {0}")]
+    Task(String),
 }
 
 impl From<MapToError<Size4KiB>> for Error {
@@ -43,5 +48,11 @@ impl From<LayoutError> for Error {
 impl From<TryFromIntError> for Error {
     fn from(error: TryFromIntError) -> Self {
         Self::Conversion(format!("{error:#?}"))
+    }
+}
+
+impl From<TaskId> for Error {
+    fn from(error: TaskId) -> Self {
+        Self::Task(format!("{error:#?}"))
     }
 }

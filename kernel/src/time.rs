@@ -1,8 +1,7 @@
-use crate::clock;
 use crate::cmos::{RTCInterrupt, RTC};
 use crate::errors::Error;
-use crate::interrupts::InterruptIndex;
 use crate::pit::{AccessMode, Channel, OperatingMode};
+use crate::{clock, println};
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use x86_64::instructions::interrupts;
 use x86_64::instructions::port::Port;
@@ -11,10 +10,10 @@ use x86_64::instructions::port::Port;
 const PIT_FREQUENCY: f64 = 3_579_545.0 / 3.0;
 
 /// The frequency divider for the PIT, in Hz.
-const PIT_DIVIDER: usize = 1_193;
+const PIT_DIVIDER: f64 = 1_193_182.0;
 
 /// The interval between PIT ticks, in seconds.
-const PIT_INTERVAL: f64 = PIT_DIVIDER as f64 / PIT_FREQUENCY;
+const PIT_INTERVAL: f64 = PIT_DIVIDER / PIT_FREQUENCY;
 
 /// The current tick of the PIT.
 static CURRENT_PIT_TICK: AtomicUsize = AtomicUsize::new(0);
@@ -46,7 +45,8 @@ pub const fn interval() -> f64 {
 pub fn halt() {
     // Save the state of the interrupts.
     let was_disabled = !interrupts::are_enabled();
-    // Enable interrupts and halt.
+
+    // Enable interrupts, and halt the CPU.
     interrupts::enable_and_hlt();
 
     // Restore the state of the interrupts.
@@ -59,7 +59,7 @@ pub fn halt() {
 ///
 /// # Arguments
 ///
-/// * `seconds` - The amount of seconds to sleep.
+/// * `seconds` - The amount of seconds.
 pub fn sleep(seconds: f64) {
     let start = clock::uptime();
 
@@ -88,7 +88,9 @@ fn set_pit_freq_divider(divider: u16, channel: &Channel) -> Result<(), Error> {
         _ => return Err(Error::Internal("Unsupported PIT channel!".into())),
     };
 
-    todo!("Figure out why this breaks the kernel! Cause: PIT init()");
+    let channel = 0;
+    let operating_mode = 6;
+    let access_mode = 3;
 
     interrupts::without_interrupts(|| {
         let bytes = divider.to_le_bytes();
@@ -98,11 +100,7 @@ fn set_pit_freq_divider(divider: u16, channel: &Channel) -> Result<(), Error> {
 
         unsafe {
             // Write the PIT mode.
-            addr.write(
-                (channel << 6)
-                    | (u8::from(AccessMode::LoByteThenHiByte) << 4)
-                    | u8::from(OperatingMode::RateGenerator),
-            );
+            addr.write((channel << 6) | (access_mode << 4) | operating_mode);
             // Write the 2 bytes of the divider.
             data.write(bytes[0]);
             data.write(bytes[1]);
@@ -143,15 +141,15 @@ pub fn rtc_interrupt_handler() {
 /// * If the PIT channel is not supported.
 pub fn init() -> Result<(), Error> {
     // Check if the PIT divider is too large.
-    let lowest_divider: usize = u16::MAX as usize + 1;
-    let divider = if PIT_DIVIDER < lowest_divider {
-        PIT_DIVIDER
+    let lowest_divider: usize = 65_536;
+    let divider = if PIT_DIVIDER < lowest_divider as f64 {
+        PIT_DIVIDER as u16
     } else {
         0
     };
 
     // Set the PIT frequency divider.
-    set_pit_freq_divider(u16::try_from(divider)?, &Channel::Channel0)?;
+    set_pit_freq_divider(divider, &Channel::Channel0)?;
     crate::interrupts::set_interrupt_request_handler(0, pit_interrupt_handler);
 
     // Set the RTC interrupt handler.
@@ -159,10 +157,16 @@ pub fn init() -> Result<(), Error> {
     RTC::default().set_interrupt(&RTCInterrupt::Update, true);
 
     // Set calibration values.
-    let calibration = 250_000;
-    let (time, ()) = time(|| sleep(calibration as f64 / 1e6));
+    let calib = 250_000;
+    let a = tsc();
 
-    CLOCK_CYCLES_PER_NS.store(time / calibration, Ordering::Relaxed);
+    // Sleep for ~0.25 seconds
+    sleep(calib as f64 / 1e6);
+
+    let b = tsc();
+
+    // Calculate the clock cycles per nanosecond.
+    CLOCK_CYCLES_PER_NS.store((b - a) / calib, Ordering::Relaxed);
 
     Ok(())
 }

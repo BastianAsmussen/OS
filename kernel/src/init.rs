@@ -1,5 +1,8 @@
+use crate::cmos::RTC;
 use crate::errors::Error;
 use crate::system::task::executor::Executor;
+use crate::system::task::{keyboard, Task};
+use crate::time::sleep;
 use crate::{memory, println};
 use crate::{time, KERNEL_VERSION};
 use bootloader::BootInfo;
@@ -32,6 +35,10 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
     println!("[INFO]: Setting up the PIC...");
     unsafe { crate::interrupts::PICS.lock().initialize() };
 
+    // Initialize the PIT.
+    println!("[INFO]: Setting up the PIT...");
+    time::init()?;
+
     // Enable interrupts.
     println!("[INFO]: Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
@@ -40,13 +47,22 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
     println!("[INFO]: Setting up memory management...");
     memory::init(boot_info)?;
 
-    // Initialize the PIT.
-    println!("[INFO]: Setting up the PIT...");
-    time::init()?;
-    println!("[INFO]: PIT Interval: {} Hz", time::interval());
-
     // Initialize the task executor.
     println!("[INFO]: Setting up the task executor...");
+    let mut executor = Executor::new();
 
-    Ok(Executor::new())
+    executor.spawn(Task::new(keyboard::print_keypress()))?;
+    executor.spawn(Task::new(async {
+        loop {
+            let time = RTC::new();
+            println!("Time: {time:#?}");
+            // TODO: Figure out why it's so off.
+            let multiplier = 100.0; // 100 = 6 seconds.
+            let secs_to_sleep = 3.0; // 3 seconds.
+            let seconds = secs_to_sleep * multiplier; // 3 * 100 = 300 which is 18 seconds.
+            sleep(seconds);
+        }
+    }))?;
+
+    Ok(executor)
 }

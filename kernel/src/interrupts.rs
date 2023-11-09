@@ -67,7 +67,7 @@ lazy_static! {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
-        }
+        };
 
         // Set the page fault handler.
         idt.page_fault.set_handler_fn(page_fault_handler);
@@ -80,11 +80,81 @@ lazy_static! {
         idt[InterruptIndex::Keyboard.as_usize()]
             .set_handler_fn(keyboard_interrupt_handler);
 
+        // Add the interrupt-request handlers.
+        idt[irq_to_ir(0) as usize].set_handler_fn(irq_0_handler);
+        idt[irq_to_ir(1) as usize].set_handler_fn(irq_1_handler);
+        idt[irq_to_ir(2) as usize].set_handler_fn(irq_2_handler);
+        idt[irq_to_ir(3) as usize].set_handler_fn(irq_3_handler);
+        idt[irq_to_ir(4) as usize].set_handler_fn(irq_4_handler);
+        idt[irq_to_ir(5) as usize].set_handler_fn(irq_5_handler);
+        idt[irq_to_ir(6) as usize].set_handler_fn(irq_6_handler);
+        idt[irq_to_ir(7) as usize].set_handler_fn(irq_7_handler);
+        idt[irq_to_ir(8) as usize].set_handler_fn(irq_8_handler);
+        idt[irq_to_ir(9) as usize].set_handler_fn(irq_9_handler);
+        idt[irq_to_ir(10) as usize].set_handler_fn(irq_10_handler);
+        idt[irq_to_ir(11) as usize].set_handler_fn(irq_11_handler);
+        idt[irq_to_ir(12) as usize].set_handler_fn(irq_12_handler);
+        idt[irq_to_ir(13) as usize].set_handler_fn(irq_13_handler);
+        idt[irq_to_ir(14) as usize].set_handler_fn(irq_14_handler);
+        idt[irq_to_ir(15) as usize].set_handler_fn(irq_15_handler);
+
         idt
     };
 
     /// The interrupt-request handlers.
     pub static ref INTERRUPT_REQUEST_HANDLERS: Mutex<[fn(); 16]> = Mutex::new([|| {}; 16]);
+}
+
+/// Sets the interrupt-request handler for the given interrupt-request index.
+///
+/// # Arguments
+///
+/// * `handler` - The interrupt-request handler.
+/// * `irq` - The interrupt-request index.
+macro_rules! interrupt_request_handler {
+    ($handler: ident, $irq:expr) => {
+        pub extern "x86-interrupt" fn $handler(_stack_frame: InterruptStackFrame) {
+            let handlers = INTERRUPT_REQUEST_HANDLERS.lock();
+
+            handlers[$irq]();
+
+            unsafe {
+                PICS.lock().notify_end_of_interrupt(irq_to_ir($irq));
+            }
+        }
+    };
+}
+
+// The interrupt-request handlers for interrupt-requests.
+interrupt_request_handler!(irq_0_handler, 0);
+interrupt_request_handler!(irq_1_handler, 1);
+interrupt_request_handler!(irq_2_handler, 2);
+interrupt_request_handler!(irq_3_handler, 3);
+interrupt_request_handler!(irq_4_handler, 4);
+interrupt_request_handler!(irq_5_handler, 5);
+interrupt_request_handler!(irq_6_handler, 6);
+interrupt_request_handler!(irq_7_handler, 7);
+interrupt_request_handler!(irq_8_handler, 8);
+interrupt_request_handler!(irq_9_handler, 9);
+interrupt_request_handler!(irq_10_handler, 10);
+interrupt_request_handler!(irq_11_handler, 11);
+interrupt_request_handler!(irq_12_handler, 12);
+interrupt_request_handler!(irq_13_handler, 13);
+interrupt_request_handler!(irq_14_handler, 14);
+interrupt_request_handler!(irq_15_handler, 15);
+
+/// Translate the interrupt-request to interrupt.
+///
+/// # Arguments
+///
+/// * `irq` - The interrupt-request.
+///
+/// # Returns
+///
+/// * `u8` - The system interrupt.
+#[must_use]
+pub const fn irq_to_ir(irq: u8) -> u8 {
+    PIC_1_OFFSET + irq
 }
 
 /// Sets the interrupt-request handler for the given interrupt-request index.
