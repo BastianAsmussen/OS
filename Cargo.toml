@@ -10,8 +10,6 @@ description = "A simple operating system written in Rust"
 kernel = { path = "kernel" }
 # Bootloader.
 bootloader = "0.9.23"
-# The shell.
-shell = { path = "programs/shell" }
 
 [workspace]
-members = ["kernel", "programs/shell"]
+members = ["kernel"]

@@ -17,13 +17,17 @@ use bootloader::{entry_point, BootInfo};
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod allocator;
+pub mod clock;
+pub mod cmos;
 pub mod errors;
 pub mod gdt;
 pub mod init;
 pub mod interrupts;
 pub mod memory;
+pub mod pit;
 pub mod serial;
 pub mod system;
+pub mod time;
 pub mod vga_buffer;
 
 /// This function is called on panic.
@@ -77,8 +81,11 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 ///
 /// * `!` - Never.
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
-    serial_println!("[ERR]\n");
-    serial_println!("Error: {}\n", info);
+    serial_println!(
+        "[ERROR]\
+        \nError: {}",
+        info
+    );
 
     exit_qemu(QemuExitCode::Failed);
     hlt_loop();

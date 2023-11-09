@@ -1,17 +1,26 @@
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use spin;
-use x86_64::instructions::port::{PortGeneric, WriteOnlyAccess};
+use spin::Mutex;
+use x86_64::instructions::interrupts;
+use x86_64::instructions::port::{Port, PortGeneric, WriteOnlyAccess};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 use crate::{gdt, hlt_loop, println};
 
+/// The first PIC offset, used for remapping.
 pub const PIC_1_OFFSET: u8 = 32;
+
+/// The second PIC offset, used for remapping.
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
-pub static PICS: spin::Mutex<ChainedPics> =
-    spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+/// The programmable interrupt controller.
+///
+/// # Notes
+///
+/// * This is a spinlock because it is shared between multiple CPUs.
+pub static PICS: Mutex<ChainedPics> =
+    Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -35,7 +44,7 @@ impl InterruptIndex {
     /// # Returns
     ///
     /// * `usize` - The interrupt index as a `usize`.
-    fn as_usize(self) -> usize {
+    pub(crate) fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
 }
@@ -46,6 +55,7 @@ pub fn init_idt() {
 }
 
 lazy_static! {
+    /// The interrupt descriptor table.
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
@@ -72,27 +82,90 @@ lazy_static! {
 
         idt
     };
+
+    /// The interrupt-request handlers.
+    pub static ref INTERRUPT_REQUEST_HANDLERS: Mutex<[fn(); 16]> = Mutex::new([|| {}; 16]);
+}
+
+/// Sets the interrupt-request handler for the given interrupt-request index.
+///
+/// # Arguments
+///
+/// * `index` - The interrupt-request index.
+/// * `handler` - The interrupt-request handler.
+///
+/// # Safety
+///
+/// * The interrupt-request handler will be set.
+/// * The interrupt-request index must be valid.
+/// * The interrupt-request handler must be valid.
+pub(crate) fn set_interrupt_request_handler(index: u8, handler: fn()) {
+    interrupts::without_interrupts(|| {
+        // Get the interrupt handlers.
+        let mut handlers = INTERRUPT_REQUEST_HANDLERS.lock();
+
+        handlers[index as usize] = handler;
+
+        // Clear the interrupt mask (enables the interrupt).
+        clear_interrupt_mask(index);
+    });
+}
+
+/// Clears the interrupt mask for the given interrupt request.
+///
+/// # Arguments
+///
+/// * `interrupt_request` - The interrupt request.
+///
+/// # Safety
+///
+/// * The interrupt mask will be cleared.
+/// * The interrupt index must be valid.
+fn clear_interrupt_mask(interrupt_request: u8) {
+    let (port, ir_value) = if interrupt_request < 8 {
+        (0x21, interrupt_request)
+    } else {
+        (0xA1, interrupt_request - 8)
+    };
+
+    let mut port: Port<u8> = Port::new(port);
+
+    unsafe {
+        let value = port.read() & !(1 << (ir_value));
+
+        port.write(value);
+    }
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
-    println!("Breakpoint Exception!\n{:#?}", stack_frame);
+    println!(
+        "Breakpoint Exception!\
+        \nStack Frame: {stack_frame:#?}"
+    );
 }
 
 extern "x86-interrupt" fn double_fault_handler(
     stack_frame: InterruptStackFrame,
-    _error_code: u64,
+    error_code: u64,
 ) -> ! {
-    panic!("Double Fault Exception!\n{:#?}", stack_frame);
+    panic!(
+        "Double Fault Exception!\
+        \nError Code: {error_code}\
+        \nStack Frame: {stack_frame:#?}"
+    );
 }
 
 extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) {
-    println!("Page Fault Exception!");
-    println!("Address: {:?}", Cr2::read());
-    println!("Error Code: {:?}", error_code);
-    println!("{:#?}", stack_frame);
+    println!(
+        "Page Fault Exception!\
+        \nAddress: {:?}\
+        \nError Code: {error_code:#?}\
+        \nStack Frame: {stack_frame:#?}",
+        Cr2::read()
+    );
 
     hlt_loop();
 }
@@ -105,8 +178,6 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use x86_64::instructions::port::Port;
-
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
     crate::system::task::keyboard::add_scancode(scancode);
@@ -145,5 +216,5 @@ pub extern "C" fn reboot_interrupt_handler() {
 #[test_case]
 fn test_breakpoint_exception() {
     // Invoke a breakpoint exception.
-    x86_64::instructions::interrupts::int3();
+    interrupts::int3();
 }

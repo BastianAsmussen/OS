@@ -38,7 +38,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     println!("[INFO]: Rust OS v{OS_VERSION} initialized successfully!");
 
-    // executor.spawn(Task::new(shell::run()));
     executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
@@ -55,7 +54,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 pub fn panic(info: &PanicInfo) -> ! {
-    println!("{info}");
+    println!("[ERROR]: {info}");
 
     kernel::hlt_loop();
 }

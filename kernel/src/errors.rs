@@ -1,6 +1,7 @@
 use alloc::format;
 use alloc::string::String;
 use core::alloc::LayoutError;
+use core::num::TryFromIntError;
 use thiserror_no_std::Error;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::Size4KiB;
@@ -21,6 +22,10 @@ pub enum Error {
     OutOfMemory(String),
     #[error("Memory Layout Error: {0}")]
     MemoryLayout(String),
+    #[error("Invalid Register Error: {0}")]
+    InvalidRegister(String),
+    #[error("Conversion Error: {0}")]
+    Conversion(String),
 }
 
 impl From<MapToError<Size4KiB>> for Error {
@@ -32,5 +37,11 @@ impl From<MapToError<Size4KiB>> for Error {
 impl From<LayoutError> for Error {
     fn from(error: LayoutError) -> Self {
         Self::MemoryLayout(format!("{error:#?}"))
+    }
+}
+
+impl From<TryFromIntError> for Error {
+    fn from(error: TryFromIntError) -> Self {
+        Self::Conversion(format!("{error:#?}"))
     }
 }

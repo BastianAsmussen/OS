@@ -106,6 +106,14 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 /// # Arguments
 ///
 /// * `boot_info`: The boot information passed from the bootloader.
+///
+/// # Returns
+///
+/// * `Result<(), Error>` - A result indicating whether the initialization succeeded or failed.
+///
+/// # Errors
+///
+/// * If the heap memory allocator fails to initialize.
 pub fn init(boot_info: &'static BootInfo) -> Result<(), Error> {
     // Initialize the physical memory offset, memory map, mapper, and frame allocator.
     unsafe {
@@ -259,6 +267,12 @@ pub fn create_example_mapping(
 /// # Returns
 ///
 /// * `Result<(), Error>` - A result indicating whether the page allocation succeeded or failed.
+///
+/// # Errors
+///
+/// * If the memory map isn't initialized.
+/// * If the frame allocator fails to allocate a frame.
+/// * If the mapper fails to map the frame.
 pub fn alloc_page(addr: u64, size: u64) -> Result<(), Error> {
     let mut mapper = unsafe { mapper(VirtAddr::new(PHYSICAL_MEMORY_OFFSET)) };
 
