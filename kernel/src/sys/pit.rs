@@ -2,17 +2,18 @@
 ///
 /// # Variants
 ///
-/// * `Channel0` - Channel 0, used for generating interrupts.
-/// * `Channel1` - Channel 1, used for reading the clock.
-/// * `Channel2` - Channel 2, used for the PC speaker.
+/// * `Zero` - Channel 0, used for generating interrupts.
+/// * `One` - Channel 1, used for reading the clock.
+/// * `Two` - Channel 2, used for the PC speaker.
 ///
 /// # See
 ///
 /// * [PIT](https://wiki.osdev.org/Programmable_Interval_Timer)
+#[derive(Debug, Clone, Copy)]
 pub enum Channel {
-    Channel0 = 0x40,
-    Channel1 = 0x41,
-    Channel2 = 0x42,
+    Zero = 0x40,
+    One = 0x41,
+    Two = 0x42,
 }
 
 impl From<Channel> for u16 {
@@ -50,18 +51,18 @@ impl From<Channel> for u8 {
 /// # Variants
 ///
 /// * `LatchCountValue` - Latch count value command.
-/// * `LoByteOnly` - Lo byte only command.
-/// * `HiByteOnly` - Hi byte only command.
-/// * `LoByteThenHiByte` - Lo byte then hi byte command.
+/// * `LowByteOnly` - Low byte only command.
+/// * `HighByteOnly` - High byte only command.
+/// * `LowByteThenHighByte` - Low byte, then high byte command.
 pub enum AccessMode {
     LatchCountValue = 0,
-    LoByteOnly = 1,
-    HiByteOnly = 2,
-    LoByteThenHiByte = 3,
+    LowByteOnly = 1,
+    HighByteOnly = 2,
+    LowByteThenHighByte = 3,
 }
 
-impl From<AccessMode> for u8 {
-    /// Converts a `PitAccessMode` to a `u8`.
+impl From<AccessMode> for u16 {
+    /// Converts a `PitAccessMode` to a `u16`.
     ///
     /// # Arguments
     ///
@@ -69,7 +70,7 @@ impl From<AccessMode> for u8 {
     ///
     /// # Returns
     ///
-    /// * `u8` - The converted access mode.
+    /// * `u16` - The converted access mode.
     fn from(access_mode: AccessMode) -> Self {
         access_mode as Self
     }
@@ -94,8 +95,8 @@ pub enum OperatingMode {
     HardwareTriggeredStrobe = 5,
 }
 
-impl From<OperatingMode> for u8 {
-    /// Converts a `PitOperatingMode` to a `u8`.
+impl From<OperatingMode> for u16 {
+    /// Converts a `PitOperatingMode` to a `u16`.
     ///
     /// # Arguments
     ///
@@ -103,7 +104,7 @@ impl From<OperatingMode> for u8 {
     ///
     /// # Returns
     ///
-    /// * `u8` - The converted operating mode.
+    /// * `u16` - The converted operating mode.
     fn from(operating_mode: OperatingMode) -> Self {
         operating_mode as Self
     }
