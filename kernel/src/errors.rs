@@ -1,10 +1,8 @@
-use crate::system;
-use crate::system::task::{Task, TaskId};
+use crate::sys::task::Identifier;
 use alloc::format;
 use alloc::string::String;
 use core::alloc::LayoutError;
 use core::num::TryFromIntError;
-use crossbeam_queue::ArrayQueue;
 use thiserror_no_std::Error;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::Size4KiB;
@@ -51,8 +49,8 @@ impl From<TryFromIntError> for Error {
     }
 }
 
-impl From<TaskId> for Error {
-    fn from(error: TaskId) -> Self {
+impl From<Identifier> for Error {
+    fn from(error: Identifier) -> Self {
         Self::Task(format!("{error:#?}"))
     }
 }
