@@ -5,7 +5,7 @@ use core::task::{Context, Poll, Waker};
 use crate::errors::Error;
 use crossbeam_queue::ArrayQueue;
 
-use super::{Task, TaskId};
+use super::{Identifier, Task};
 
 /// The task executor.
 ///
@@ -17,9 +17,9 @@ use super::{Task, TaskId};
 /// * `task_queue`: The queue of task IDs.
 /// * `waker_cache`: The cache of task wakers.
 pub struct Executor {
-    tasks: BTreeMap<TaskId, Task>,
-    task_queue: Arc<ArrayQueue<TaskId>>,
-    waker_cache: BTreeMap<TaskId, Waker>,
+    tasks: BTreeMap<Identifier, Task>,
+    task_queue: Arc<ArrayQueue<Identifier>>,
+    waker_cache: BTreeMap<Identifier, Waker>,
 }
 
 impl Executor {
@@ -48,7 +48,7 @@ impl Executor {
     /// * If the task ID is already in use.
     /// * If the task queue is full.
     #[allow(clippy::expect_used)]
-    pub fn spawn(&mut self, task: Task) -> Result<TaskId, Error> {
+    pub fn spawn(&mut self, task: Task) -> Result<Identifier, Error> {
         let task_id = task.id;
         match self.tasks.insert(task_id, task) {
             Some(_) => {
@@ -135,8 +135,8 @@ impl Default for Executor {
 /// * `task_id`: The ID of the task to wake.
 /// * `task_queue`: The queue of task IDs.
 struct TaskWaker {
-    task_id: TaskId,
-    task_queue: Arc<ArrayQueue<TaskId>>,
+    task_id: Identifier,
+    task_queue: Arc<ArrayQueue<Identifier>>,
 }
 
 impl TaskWaker {
@@ -147,7 +147,7 @@ impl TaskWaker {
     /// * `task_id`: The ID of the task to wake.
     /// * `task_queue`: The queue of task IDs.
     #[allow(clippy::new_ret_no_self)]
-    fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+    fn new(task_id: Identifier, task_queue: Arc<ArrayQueue<Identifier>>) -> Waker {
         Waker::from(Arc::new(Self {
             task_id,
             task_queue,
