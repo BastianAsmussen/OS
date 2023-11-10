@@ -8,12 +8,9 @@ extern crate alloc;
 use core::panic::PanicInfo;
 
 use bootloader::{entry_point, BootInfo};
-use kernel::clock::uptime;
-
 use kernel::println;
-use kernel::system::task::{keyboard, Task};
 
-/// The version of the operating system.
+/// The version of the operating sys.
 pub const OS_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 entry_point!(kernel_main);
@@ -31,8 +28,8 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut executor = match kernel::init::start_kernel(boot_info) {
         Ok(executor) => executor,
-        Err(error) => {
-            println!("[ERROR]: Failed to initialize kernel: {error:#?}");
+        Err(why) => {
+            println!("[ERROR]: Failed to initialize kernel: {err:#?}", err = why);
             kernel::hlt_loop();
         }
     };
