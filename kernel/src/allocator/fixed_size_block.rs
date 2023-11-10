@@ -33,6 +33,7 @@ pub struct FixedSizeBlockAllocator {
 
 impl FixedSizeBlockAllocator {
     /// Creates an empty `FixedSizeBlockAllocator`.
+    #[must_use]
     pub const fn new() -> Self {
         const EMPTY: Option<&'static mut ListNode> = None;
 

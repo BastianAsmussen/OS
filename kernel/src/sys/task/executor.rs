@@ -2,9 +2,10 @@ use alloc::task::Wake;
 use alloc::{collections::BTreeMap, sync::Arc};
 use core::task::{Context, Poll, Waker};
 
+use crate::errors::Error;
 use crossbeam_queue::ArrayQueue;
 
-use super::{Task, TaskId};
+use super::{Identifier, Task};
 
 /// The task executor.
 ///
@@ -16,9 +17,9 @@ use super::{Task, TaskId};
 /// * `task_queue`: The queue of task IDs.
 /// * `waker_cache`: The cache of task wakers.
 pub struct Executor {
-    tasks: BTreeMap<TaskId, Task>,
-    task_queue: Arc<ArrayQueue<TaskId>>,
-    waker_cache: BTreeMap<TaskId, Waker>,
+    tasks: BTreeMap<Identifier, Task>,
+    task_queue: Arc<ArrayQueue<Identifier>>,
+    waker_cache: BTreeMap<Identifier, Waker>,
 }
 
 impl Executor {
@@ -38,19 +39,27 @@ impl Executor {
     ///
     /// * `task`: The task to spawn.
     ///
-    /// # Panics
+    /// # Returns
     ///
-    /// * If a task with the same ID already exists.
-    /// * If the queue is full.
+    /// * `Result<TaskId, Error>` - The ID of the spawned task.
+    ///
+    /// # Errors
+    ///
+    /// * If the task ID is already in use.
+    /// * If the task queue is full.
     #[allow(clippy::expect_used)]
-    pub fn spawn(&mut self, task: Task) {
+    pub fn spawn(&mut self, task: Task) -> Result<Identifier, Error> {
         let task_id = task.id;
-        assert!(
-            self.tasks.insert(task.id, task).is_none(),
-            "Task with same ID already in tasks!"
-        );
+        match self.tasks.insert(task_id, task) {
+            Some(_) => {
+                return Err(Error::Internal(
+                    "Task with same ID already in tasks!".into(),
+                ))
+            }
+            None => self.task_queue.push(task_id)?,
+        }
 
-        self.task_queue.push(task_id).expect("Task queue full!");
+        Ok(task_id)
     }
 
     /// Runs all ready tasks.
@@ -64,7 +73,7 @@ impl Executor {
             waker_cache,
         } = self;
 
-        while let Ok(task_id) = task_queue.pop() {
+        while let Some(task_id) = task_queue.pop() {
             let Some(task) = tasks.get_mut(&task_id) else {
                 continue;
             };
@@ -126,8 +135,8 @@ impl Default for Executor {
 /// * `task_id`: The ID of the task to wake.
 /// * `task_queue`: The queue of task IDs.
 struct TaskWaker {
-    task_id: TaskId,
-    task_queue: Arc<ArrayQueue<TaskId>>,
+    task_id: Identifier,
+    task_queue: Arc<ArrayQueue<Identifier>>,
 }
 
 impl TaskWaker {
@@ -138,7 +147,7 @@ impl TaskWaker {
     /// * `task_id`: The ID of the task to wake.
     /// * `task_queue`: The queue of task IDs.
     #[allow(clippy::new_ret_no_self)]
-    fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
+    fn new(task_id: Identifier, task_queue: Arc<ArrayQueue<Identifier>>) -> Waker {
         Waker::from(Arc::new(Self {
             task_id,
             task_queue,

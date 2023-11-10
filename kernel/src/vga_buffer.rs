@@ -73,12 +73,12 @@ impl ColorCode {
 ///
 /// # Fields
 ///
-/// * `ascii_character`: The ASCII character.
+/// * `ascii_char`: The ASCII character.
 /// * `color_code`: The color code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
-    ascii_character: u8,
+    ascii_char: u8,
     color_code: ColorCode,
 }
 
@@ -129,7 +129,7 @@ impl Writer {
                 let color_code = self.color_code;
 
                 self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_character: byte,
+                    ascii_char: byte,
                     color_code,
                 });
 
@@ -178,7 +178,7 @@ impl Writer {
     /// * `row`: The row to clear.
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
-            ascii_character: b' ',
+            ascii_char: b' ',
             color_code: self.color_code,
         };
 

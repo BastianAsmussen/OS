@@ -2,6 +2,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::{mem, ptr};
 
 use crate::allocator::Locked;
+use crate::errors::Error;
 
 use super::align_up;
 
@@ -17,14 +18,29 @@ struct ListNode {
 }
 
 impl ListNode {
+    /// Creates a new list node.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The size of the memory region in bytes.
     const fn new(size: usize) -> Self {
         Self { size, next: None }
     }
 
+    /// Gets the start address of the memory region.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The start address of the memory region.
     fn start_addr(&self) -> usize {
         self as *const Self as usize
     }
 
+    /// Gets the end address of the memory region.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The end address of the memory region.
     fn end_addr(&self) -> usize {
         self.start_addr() + self.size
     }
@@ -51,9 +67,13 @@ impl LinkedListAllocator {
 
     /// Adds the given memory region to the front of the list.
     ///
+    /// # Arguments
+    ///
+    /// * `addr` - The start address of the memory region.
+    /// * `size` - The size of the memory region in bytes.
+    ///
     /// # Safety
-    /// This function is unsafe because the caller must guarantee that the given
-    /// memory region is unused.
+    /// * This method is unsafe because the caller must guarantee that the given memory region is unused.
     unsafe fn add_free_region(&mut self, addr: usize, size: usize) {
         // Ensure that the freed region is capable of holding ListNode.
         assert_eq!(align_up(addr, mem::align_of::<ListNode>()), addr);
@@ -71,54 +91,63 @@ impl LinkedListAllocator {
 
     /// Initialize the allocator with the given heap bounds.
     ///
+    /// # Arguments
+    ///
+    /// * `heap_start` - The start address of the heap.
+    /// * `heap_size` - The size of the heap in bytes.
+    ///
     /// # Safety
-    /// This function is unsafe because the caller must guarantee that the given
-    /// heap bounds are valid and that the heap is unused. This method must be
-    /// called only once.
+    /// * This function is unsafe because the caller must guarantee that the given heap bounds are valid and that the heap is unused.
+    /// * This method must be called only once.
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.add_free_region(heap_start, heap_size);
     }
 
     /// Adds the given memory region to the front of the list.
     ///
-    /// # Safety
-    /// * This function is unsafe because the caller must guarantee that the given memory region is unused.
-    /// * Try to use the given region for an allocation with given size and alignment.
+    /// # Arguments
+    ///
+    /// * `region` - The memory region.
+    /// * `size` - The size of the memory region in bytes.
+    /// * `align` - The alignment of the memory region in bytes.
     ///
     /// # Returns
     ///
-    /// * `Result<usize, ()>`: If the allocation succeeds, then the start address.
-    /// * `Err(())`: If the allocation fails.
-    fn alloc_from_region(region: &ListNode, size: usize, align: usize) -> Result<usize, ()> {
+    /// * `Result<usize, Error>` - The start address of the allocated memory region.
+    fn alloc_from_region(region: &ListNode, size: usize, align: usize) -> Result<usize, Error> {
         let alloc_start = align_up(region.start_addr(), align);
-        let alloc_end = alloc_start.checked_add(size).ok_or(())?;
+        let alloc_end = alloc_start
+            .checked_add(size)
+            .ok_or_else(|| Error::OutOfMemory("Allocation failed due to overflow!".into()))?;
 
         if alloc_end > region.end_addr() {
-            // Region is too small!
-            return Err(());
+            return Err(Error::OutOfMemory("Memory region too small!".into()));
         }
 
         let excess_size = region.end_addr() - alloc_end;
         if excess_size > 0 && excess_size < mem::size_of::<ListNode>() {
             // The rest of region too small to hold a ListNode (required because the allocation splits the region in a used and a free part).
-            return Err(());
+            return Err(Error::OutOfMemory("Memory region too small!".into()));
         }
 
         // Region suitable for allocation.
         Ok(alloc_start)
     }
 
-    /// Looks for a free region with the given size and alignment and removes
-    /// it from the list.
+    /// Looks for a free region with the given size and alignment and removes it from the list.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - The size of the memory region in bytes.
+    /// * `align` - The alignment of the memory region in bytes.
     ///
     /// # Returns
     ///
-    /// * `Some((addr, alloc_start))`: If a suitable region was found, then
-    /// * `None`: If no suitable region was found.
+    /// * `Option<(&'static mut ListNode, usize)>`: The removed list node and the start address of the allocated memory region.
     ///
     /// # Panics
     ///
-    /// * If adjusting the alignment fails.
+    /// * If the next node is `None` although the current node is not the last node.
     #[allow(clippy::expect_used)]
     fn find_region(&mut self, size: usize, align: usize) -> Option<(&'static mut ListNode, usize)> {
         // Reference to current list node, updated for each iteration.
@@ -147,44 +176,54 @@ impl LinkedListAllocator {
         None
     }
 
-    /// Adjust the given layout so that the resulting allocated memory
-    /// region is also capable of storing a `ListNode`.
+    /// Adjust the given layout so that the resulting allocated memory region is also capable of storing a `ListNode`.
+    ///
+    /// # Arguments
+    ///
+    /// * `layout` - The layout to adjust.
     ///
     /// # Returns
-    /// * `(usize, usize)`: The adjusted size and alignment as a (size, align) tuple.
     ///
-    /// # Panics
+    /// * `Result<(usize, usize), Error>` - The adjusted size and alignment of the layout, if successful.
     ///
-    /// * If adjusting the alignment fails due to overflow.
-    #[allow(clippy::expect_used)]
-    #[must_use]
-    fn size_align(layout: Layout) -> (usize, usize) {
-        let layout = layout
-            .align_to(mem::align_of::<ListNode>())
-            .expect("Adjusting alignment failed!")
-            .pad_to_align();
+    /// # Errors
+    ///
+    /// * If the given layout is invalid.
+    fn size_align(layout: Layout) -> Result<(usize, usize), Error> {
+        let layout = layout.align_to(mem::align_of::<ListNode>())?.pad_to_align();
 
         let size = layout.size().max(mem::size_of::<ListNode>());
 
-        (size, layout.align())
+        Ok((size, layout.align()))
     }
 }
 
 unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
     /// Allocate memory with the given layout.
     ///
-    /// # Safety
+    /// # Arguments
     ///
-    /// * The caller must ensure that the given layout is valid.
-    /// * The caller must ensure that the allocation succeeds.
+    /// * `layout` - The layout of the memory to allocate.
     ///
     /// # Returns
     ///
     /// * `*mut u8`: Pointer to the allocated memory.
+    ///
+    /// # Safety
+    ///
+    /// * The caller must ensure that the given layout is valid.
+    /// * The caller must ensure that the allocated memory is not used anymore.
+    /// * The caller must ensure that the allocated memory is not freed twice.
+    ///
+    /// # Panics
+    ///
+    /// * If the allocation fails due to invalid layout.
+    /// * If the allocation fails due to overflow.
     #[allow(clippy::expect_used)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         // Perform layout adjustments.
-        let (size, align) = LinkedListAllocator::size_align(layout);
+        let (size, align) = LinkedListAllocator::size_align(layout)
+            .expect("Allocation failed due to invalid layout!");
         let mut allocator = self.lock();
 
         // Look for a suitable region and allocate it.
@@ -197,22 +236,35 @@ unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
                 allocator.find_region(alloc_end, excess_size);
             }
 
-            alloc_start as *mut u8
-        } else {
-            ptr::null_mut()
+            return alloc_start as *mut u8;
         }
+
+        // No suitable region found.
+        ptr::null_mut()
     }
 
     /// Deallocate the memory region at the given pointer with the given layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr` - The pointer to the memory region to deallocate.
+    /// * `layout` - The layout of the memory region to deallocate.
     ///
     /// # Safety
     ///
     /// * The caller must ensure that the given layout is valid.
     /// * The caller must ensure that the given pointer is valid.
-    /// * The caller must ensure that the given memory region is not used anymore.
+    /// * The caller must ensure that the given pointer is not used anymore.
+    /// * The caller must ensure that the given pointer is not freed twice.
+    ///
+    /// # Panics
+    ///
+    /// * If the deallocation fails due to invalid layout.
+    #[allow(clippy::expect_used)]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         // Perform layout adjustments.
-        let (size, _) = LinkedListAllocator::size_align(layout);
+        let (size, _) = LinkedListAllocator::size_align(layout)
+            .expect("Deallocation failed due to invalid layout!");
 
         // Add freed region to the list.
         self.lock().add_free_region(ptr as usize, size);

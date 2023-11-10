@@ -8,16 +8,10 @@ extern crate alloc;
 use core::panic::PanicInfo;
 
 use bootloader::{entry_point, BootInfo};
+use kernel::println;
 
-use kernel::task::executor::Executor;
-use kernel::task::{keyboard, Task};
-use kernel::{memory, println};
-
-/// The name of the operating system.
-pub const OS_NAME: &str = "Rust OS";
-
-/// The version of the kernel.
-pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The version of the operating sys.
+pub const OS_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 entry_point!(kernel_main);
 
@@ -32,33 +26,16 @@ entry_point!(kernel_main);
 /// * `!` - Never.
 #[allow(clippy::expect_used)]
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    use kernel::allocator;
-    use kernel::memory::BootInfoFrameAllocator;
-    use x86_64::VirtAddr;
+    let mut executor = match kernel::init::start_kernel(boot_info) {
+        Ok(executor) => executor,
+        Err(why) => {
+            println!("[ERROR]: Failed to initialize kernel: {err:#?}", err = why);
+            kernel::hlt_loop();
+        }
+    };
 
-    println!("{OS_NAME} v{KERNEL_VERSION}");
+    println!("[INFO]: Rust OS v{OS_VERSION} initialized successfully!");
 
-    // Initialize the GDT, IDT, PIC, and enable interrupts.
-    kernel::init();
-
-    // Initialize the memory management.
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
-
-    // Initialize the heap memory allocator.
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Heap initialization failed!");
-
-    // Run tests.
-    #[cfg(test)]
-    test_kernel_main();
-
-    let _ = keyboard::ScancodeStream::new();
-
-    let mut executor = Executor::new();
-
-    executor.spawn(Task::new(shell::run()));
-    // executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
 
@@ -74,7 +51,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 pub fn panic(info: &PanicInfo) -> ! {
-    println!("{info}");
+    println!("[ERROR]: {info}");
 
     kernel::hlt_loop();
 }

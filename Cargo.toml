@@ -6,13 +6,10 @@ authors = ["Bastian Almar Wolsgaard Asmussen <bastian@asmussen.tech>"]
 description = "A simple operating system written in Rust"
 
 [dependencies]
+# The OS kernel.
 kernel = { path = "kernel" }
-bootloader = "0.9.9" # Bootloader.
-x86_64 = "0.14.2" # Provides the x86_64 target.
-
-shell = { path = "programs/shell" }
+# Bootloader.
+bootloader = "0.9.23"
 
 [workspace]
-resolver = "2"
-
-members = ["kernel", "programs/shell", "programs/shutdown", "stdlib"]
+members = ["kernel"]

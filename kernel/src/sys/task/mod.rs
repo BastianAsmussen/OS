@@ -3,6 +3,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use core::task::{Context, Poll};
 use core::{future::Future, pin::Pin};
 
+pub mod clock;
 pub mod executor;
 pub mod keyboard;
 pub mod primes;
@@ -15,7 +16,7 @@ pub mod simple_executor;
 /// * `id`: The task ID.
 /// * `future`: The future to be executed.
 pub struct Task {
-    id: TaskId,
+    id: Identifier,
     future: Pin<Box<dyn Future<Output = ()>>>,
 }
 
@@ -27,7 +28,7 @@ impl Task {
     /// * `future`: The future to be executed.
     pub fn new(future: impl Future<Output = ()> + 'static) -> Self {
         Self {
-            id: TaskId::new(),
+            id: Identifier::new(),
             future: Box::pin(future),
         }
     }
@@ -46,12 +47,12 @@ impl Task {
     }
 }
 
-/// A task ID.
+/// A task identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct TaskId(u64);
+pub struct Identifier(u64);
 
-impl TaskId {
-    /// Creates a new `TaskId`.
+impl Identifier {
+    /// Creates a new task identifier.
     fn new() -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 

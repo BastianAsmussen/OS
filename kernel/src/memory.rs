@@ -1,4 +1,7 @@
+use crate::allocator::init_heap;
+use crate::errors::Error;
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
+use bootloader::BootInfo;
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
@@ -7,6 +10,12 @@ use x86_64::{
     },
     PhysAddr, VirtAddr,
 };
+
+/// The offset between physical and virtual memory.
+pub static mut PHYSICAL_MEMORY_OFFSET: u64 = 0x0;
+
+/// The memory map passed from the bootloader.
+pub static mut MEMORY_MAP: Option<&MemoryMap> = None;
 
 /// A `FrameAllocator` that always returns `None`.
 pub struct EmptyFrameAllocator;
@@ -92,7 +101,36 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     }
 }
 
-/// Initializes a new `OffsetPageTable`.
+/// Initializes the memory system.
+///
+/// # Arguments
+///
+/// * `boot_info`: The boot information passed from the bootloader.
+///
+/// # Returns
+///
+/// * `Result<(), Error>` - A result indicating whether the initialization succeeded or failed.
+///
+/// # Errors
+///
+/// * If the heap memory allocator fails to initialize.
+pub fn init(boot_info: &'static BootInfo) -> Result<(), Error> {
+    // Initialize the physical memory offset, memory map, mapper, and frame allocator.
+    unsafe {
+        PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset;
+        MEMORY_MAP.replace(&boot_info.memory_map);
+
+        let mut mapper = mapper(VirtAddr::new(PHYSICAL_MEMORY_OFFSET));
+        let mut frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_map);
+
+        // Initialize the heap.
+        init_heap(&mut mapper, &mut frame_allocator)?;
+    };
+
+    Ok(())
+}
+
+/// Creates a new mapper.
 ///
 /// # Arguments
 ///
@@ -100,12 +138,13 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 ///
 /// # Returns
 ///
-/// * `OffsetPageTable<'static>` - A new `OffsetPageTable`.
+/// * `OffsetPageTable<'static>` - The new mapper.
 ///
 /// # Safety
-/// * This function is unsafe because the caller must guarantee that the complete physical memory is mapped to virtual memory at the passed `physical_memory_offset`. Also, this function must be only called once to avoid aliasing `&mut` references (which is undefined behavior).
-#[must_use]
-pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
+///
+/// * This function is unsafe because the caller must guarantee that the complete physical memory is mapped to virtual memory at the passed `physical_memory_offset`.
+/// Also, this function must be only called once to avoid aliasing `&mut` references (which is undefined behavior).
+unsafe fn mapper(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
     let level_4_table = activate_level_4_table(physical_memory_offset);
 
     OffsetPageTable::new(level_4_table, physical_memory_offset)
@@ -216,4 +255,58 @@ pub fn create_example_mapping(
     let map_to_result = unsafe { mapper.map_to(page, frame, flags, frame_allocator) };
 
     map_to_result.expect("map_to failed!").flush();
+}
+
+/// Allocates a page of the given size.
+///
+/// # Arguments
+///
+/// * `addr` - The address to allocate the page at.
+/// * `size` - The size of the page to allocate.
+///
+/// # Returns
+///
+/// * `Result<(), Error>` - A result indicating whether the page allocation succeeded or failed.
+///
+/// # Errors
+///
+/// * If the memory map isn't initialized.
+/// * If the frame allocator fails to allocate a frame.
+/// * If the mapper fails to map the frame.
+pub fn alloc_page(addr: u64, size: u64) -> Result<(), Error> {
+    let mut mapper = unsafe { mapper(VirtAddr::new(PHYSICAL_MEMORY_OFFSET)) };
+
+    let mut framealloc = unsafe {
+        let Some(memory_map) = MEMORY_MAP else {
+            return Err(Error::Internal("Memory map isn't initialized!".into()));
+        };
+
+        BootInfoFrameAllocator::init(memory_map)
+    };
+
+    let flags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
+
+    let pages = {
+        let start_page = Page::containing_address(VirtAddr::new(addr));
+        let end_page = Page::containing_address(VirtAddr::new(addr + size));
+
+        Page::range_inclusive(start_page, end_page)
+    };
+
+    for page in pages {
+        let Some(frame) = framealloc.allocate_frame() else {
+            return Err(Error::Internal("Unable to allocate frame!".into()));
+        };
+
+        unsafe {
+            if let Ok(mapping) = mapper.map_to(page, frame, flags, &mut framealloc) {
+                mapping.flush();
+            } else {
+                return Err(Error::Internal("Unable to map frame!".into()));
+            }
+        }
+    }
+
+    Ok(())
 }

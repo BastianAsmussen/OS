@@ -13,30 +13,16 @@ use core::panic::PanicInfo;
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
 
+/// The version of the kernel.
+pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub mod allocator;
-pub mod gdt;
-pub mod interrupts;
+pub mod errors;
+pub mod init;
 pub mod memory;
 pub mod serial;
-pub mod task;
+pub mod sys;
 pub mod vga_buffer;
-
-/// Initializes the kernel libraries.
-///
-/// This will start the GDT, IDT, and PIC, and enable interrupts.
-pub fn init() {
-    // Initialize the global descriptor table.
-    gdt::init();
-
-    // Initialize the interrupt descriptor table.
-    interrupts::init_idt();
-
-    // Initialize the programmable interrupt controller.
-    unsafe { interrupts::PICS.lock().initialize() };
-
-    // Enable interrupts.
-    x86_64::instructions::interrupts::enable();
-}
 
 /// This function is called on panic.
 pub fn hlt_loop() -> ! {
@@ -89,8 +75,11 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 ///
 /// * `!` - Never.
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
-    serial_println!("[ERR]\n");
-    serial_println!("Error: {}\n", info);
+    serial_println!(
+        "[ERROR]\
+        \nError: {}",
+        info
+    );
 
     exit_qemu(QemuExitCode::Failed);
     hlt_loop();
@@ -156,8 +145,7 @@ entry_point!(test_kernel_main);
 #[allow(clippy::no_mangle_with_rust_abi)]
 #[cfg(test)]
 #[no_mangle]
-fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
-    init();
-    test_main();
+fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
+    init::start_kernel(boot_info).expect("Failed to start kernel!");
     hlt_loop();
 }
