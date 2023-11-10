@@ -1,10 +1,9 @@
-use crate::cmos::RTC;
 use crate::errors::Error;
-use crate::system::task::executor::Executor;
-use crate::system::task::{keyboard, Task};
-use crate::time::sleep;
+use crate::sys::task::executor::Executor;
+use crate::sys::task::{keyboard, Task};
+use crate::sys::{gdt, idt, pic, time};
+use crate::KERNEL_VERSION;
 use crate::{memory, println};
-use crate::{time, KERNEL_VERSION};
 use bootloader::BootInfo;
 
 /// Initializes the kernel.
@@ -21,27 +20,30 @@ use bootloader::BootInfo;
 ///
 /// * If the heap memory allocator fails to initialize.
 pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
-    println!("[INFO]: Initializing kernel v{KERNEL_VERSION}...");
+    println!(
+        "[INFO]: Initializing kernel v{version}...",
+        version = KERNEL_VERSION
+    );
 
     // Initialize the global descriptor table.
-    println!("[INFO]: Setting up the GDT...");
-    crate::gdt::init();
+    println!("[INFO]: Configuring GDT...");
+    gdt::init();
 
     // Initialize the interrupt descriptor table.
-    println!("[INFO]: Setting up the IDT...");
-    crate::interrupts::init_idt();
+    println!("[INFO]: Configuring IDT...");
+    idt::init();
 
     // Initialize the programmable interrupt controller.
-    println!("[INFO]: Setting up the PIC...");
-    unsafe { crate::interrupts::PICS.lock().initialize() };
-
-    // Initialize the PIT.
-    println!("[INFO]: Setting up the PIT...");
-    time::init()?;
+    println!("[INFO]: Configuring PIC...");
+    unsafe { pic::PICS.lock().initialize() };
 
     // Enable interrupts.
     println!("[INFO]: Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
+
+    // Initialize the PIT.
+    println!("[INFO]: Configuring PIT...");
+    time::init()?;
 
     // Initialize the memory management.
     println!("[INFO]: Setting up memory management...");
@@ -50,19 +52,7 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
     // Initialize the task executor.
     println!("[INFO]: Setting up the task executor...");
     let mut executor = Executor::new();
-
     executor.spawn(Task::new(keyboard::print_keypress()))?;
-    executor.spawn(Task::new(async {
-        loop {
-            let time = RTC::new();
-            println!("Time: {time:#?}");
-            // TODO: Figure out why it's so off.
-            let multiplier = 100.0; // 100 = 6 seconds.
-            let secs_to_sleep = 3.0; // 3 seconds.
-            let seconds = secs_to_sleep * multiplier; // 3 * 100 = 300 which is 18 seconds.
-            sleep(seconds);
-        }
-    }))?;
 
     Ok(executor)
 }
