@@ -17,17 +17,11 @@ use bootloader::{entry_point, BootInfo};
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod allocator;
-pub mod clock;
-pub mod cmos;
 pub mod errors;
-pub mod gdt;
 pub mod init;
-pub mod interrupts;
 pub mod memory;
-pub mod pit;
 pub mod serial;
-pub mod system;
-pub mod time;
+pub mod sys;
 pub mod vga_buffer;
 
 /// This function is called on panic.
@@ -152,6 +146,6 @@ entry_point!(test_kernel_main);
 #[cfg(test)]
 #[no_mangle]
 fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
-    start_kernel(boot_info).expect("Failed to start kernel!");
+    init::start_kernel(boot_info).expect("Failed to start kernel!");
     hlt_loop();
 }
