@@ -28,8 +28,8 @@ jobs:
         with:
           command: build
           
-      - name: Run cargo install bootloader
-        run: cargo install bootloader --version "0.9.9"
+      - name: Run cargo install bootimage
+        run: cargo install bootimage
         
       - name: Run cargo bootimage
         uses: actions-rs/cargo@v1
