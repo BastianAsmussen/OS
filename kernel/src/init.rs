@@ -3,7 +3,7 @@ use crate::sys::task::executor::Executor;
 use crate::sys::task::{keyboard, Task};
 use crate::sys::{gdt, idt, pic, time};
 use crate::KERNEL_VERSION;
-use crate::{memory, println};
+use crate::{mem, println};
 use bootloader::BootInfo;
 
 /// Initializes the kernel.
@@ -47,7 +47,7 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
 
     // Initialize the memory management.
     println!("[INFO]: Setting up memory management...");
-    memory::init(boot_info)?;
+    mem::init(boot_info)?;
 
     // Initialize the task executor.
     println!("[INFO]: Setting up the task executor...");

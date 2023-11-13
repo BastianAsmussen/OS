@@ -19,7 +19,7 @@ pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod allocator;
 pub mod errors;
 pub mod init;
-pub mod memory;
+pub mod mem;
 pub mod serial;
 pub mod sys;
 pub mod vga_buffer;
