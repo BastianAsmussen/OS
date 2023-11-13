@@ -14,7 +14,7 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 ///
 /// 1. `Timer` - The timer interrupt (exists at [`PIC_1_OFFSET`]).
 /// 2. `Keyboard` - The keyboard interrupt, used for keyboard input (exists at [`PIC_1_OFFSET`] + 1).
-/// 3. `Cmos` - The CMOS interrupt, used for the RTC (exists at [`PIC_2_OFFSET`]).
+/// 3. `RTC` - The RTC interrupt, used for the RTC (exists at [`PIC_2_OFFSET`]).
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {

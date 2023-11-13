@@ -17,7 +17,9 @@ use bootloader::{entry_point, BootInfo};
 pub const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod allocator;
+pub mod dev;
 pub mod errors;
+pub mod fs;
 pub mod init;
 pub mod mem;
 pub mod serial;

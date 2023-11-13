@@ -29,6 +29,8 @@ pub enum Error {
     Conversion(String),
     #[error("Task Error: {0}")]
     Task(String),
+    #[error("File System Error: {0}")]
+    FileSystem(String),
 }
 
 impl From<MapToError<Size4KiB>> for Error {
