@@ -2,7 +2,7 @@ use crate::errors::Error;
 use crate::sys::task::executor::Executor;
 use crate::sys::task::{keyboard, Task};
 use crate::sys::{gdt, idt, pic, time};
-use crate::{dev, fs, KERNEL_VERSION};
+use crate::KERNEL_VERSION;
 use crate::{mem, println};
 use bootloader::BootInfo;
 
@@ -49,13 +49,15 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
     println!("[INFO]: Configuring memory management...");
     mem::init(boot_info)?;
 
-    // Initialize the disks.
+    /* TODO: Create device drivers and a file system.
+    // Initialize the device drivers.
     println!("[INFO]: Initializing ATA devices...");
     dev::ata::init()?;
 
     // Initialize the file system.
     println!("[INFO]: Initializing the file system...");
     fs::init();
+     */
 
     // Initialize the task executor.
     println!("[INFO]: Setting up the task executor...");
