@@ -7,7 +7,7 @@ use alloc::format;
 /// # Arguments
 ///
 /// * `rtc` - The RTC struct.
-pub fn print_clock(rtc: &RTC) {
+pub fn print(rtc: &RTC) {
     let date = format!(
         "{day:02}/{month:02}/{century:02}{year:02}",
         day = rtc.day,
