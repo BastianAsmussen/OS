@@ -221,6 +221,27 @@ impl RTC {
     pub const fn bcd_to_binary(value: u8) -> u8 {
         ((value & 0xF0) >> 1) + ((value & 0xF0) >> 3) + (value & 0xF)
     }
+
+    /// Converts the RTC time to milliseconds.
+    ///
+    /// # Returns
+    ///
+    /// * `u64` - The RTC time in milliseconds.
+    #[must_use]
+    pub const fn as_millis(&self) -> u64 {
+        let mut millis = 0;
+
+        // Convert the RTC time to milliseconds.
+        millis += self.seconds as u64 * 1_000;
+        millis += self.minutes as u64 * 60 * 1_000;
+        millis += self.hours as u64 * 60 * 60 * 1_000;
+        millis += self.day as u64 * 24 * 60 * 60 * 1_000;
+        millis += self.month as u64 * 30 * 24 * 60 * 60 * 1_000;
+        millis += self.year as u64 * 365 * 24 * 60 * 60 * 1_000;
+        millis += self.century as u64 * 100 * 365 * 24 * 60 * 60 * 1_000;
+
+        millis
+    }
 }
 
 /// The RTC interrupt.

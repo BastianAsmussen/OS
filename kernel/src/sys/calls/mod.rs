@@ -16,7 +16,18 @@ pub enum Call {
     Unknown = 0x4,
 }
 
-pub fn dispatch(call: Call, args: &[usize]) -> Option<usize> {
+/// Dispatches a system call.
+///
+/// # Arguments
+///
+/// * `call` - The system call.
+/// * `args` - The arguments for the system call.
+///
+/// # Returns
+///
+/// * `Option<usize>` - The return value of the system call.
+#[must_use]
+pub fn dispatch(call: &Call, args: &[usize]) -> Option<usize> {
     match call {
         Call::Sleep => {
             let duration = args[0];
@@ -32,8 +43,9 @@ pub fn dispatch(call: Call, args: &[usize]) -> Option<usize> {
         }
         Call::RTC => {
             let rtc = RTC::new();
+            let millis = rtc.as_millis();
 
-
+            usize::try_from(millis).ok()
         }
         Call::Unknown => None,
     }

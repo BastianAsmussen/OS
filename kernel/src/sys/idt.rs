@@ -147,7 +147,7 @@ extern "x86-interrupt" fn rtc_interrupt_handler(_stack_frame: InterruptStackFram
             .notify_end_of_interrupt(InterruptIndex::RTC.as_u8());
     }
 
-    crate::sys::task::clock::print(&RTC::new_no_check());
+    // crate::sys::task::clock::print(&RTC::new_no_check());
 }
 
 #[test_case]

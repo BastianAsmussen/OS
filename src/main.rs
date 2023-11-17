@@ -36,11 +36,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     println!("[INFO]: Rust OS v{OS_VERSION} initialized successfully!");
 
-    println!(
-        "printf(...) exit code: {code}",
-        code = stdlib::printf(b"Hello, World!\n\0".as_ptr())
-    );
-
     executor.run();
 }
 

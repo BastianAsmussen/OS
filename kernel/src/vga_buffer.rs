@@ -296,7 +296,7 @@ fn test_println_output() {
         for (i, c) in s.chars().enumerate() {
             let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
 
-            assert_eq!(char::from(screen_char.ascii_character), c);
+            assert_eq!(char::from(screen_char.ascii_char), c);
         }
     });
 }
