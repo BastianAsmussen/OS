@@ -1,5 +1,3 @@
-use crate::dev::ata::bus::Bus;
-use crate::dev::ata::drive::Drive;
 use crate::errors::Error;
 use crate::sys::task::executor::Executor;
 use crate::sys::task::{keyboard, Task};
@@ -54,9 +52,6 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
     // Initialize the device drivers.
     println!("[INFO]: Initializing device drivers...");
     dev::init()?;
-
-    let drive = Drive::new(Bus::Primary, 0, 0x1F0, 0x3F6);
-    println!("[DEBUG]: {err:#?}", err = drive.register_handler.error());
 
     // // Initialize the file system.
     // println!("[INFO]: Initializing the file system...");

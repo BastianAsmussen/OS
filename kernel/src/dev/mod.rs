@@ -16,7 +16,7 @@ pub mod net;
 /// * If the network driver fails to initialize.
 pub fn init() -> Result<(), Error> {
     println!("[INFO]: Initializing the ATA driver...");
-    ata::init()?;
+    ata::init();
 
     // println!("[INFO]: Initializing the network driver...");
     // net::init()?;

@@ -104,8 +104,8 @@ pub fn init() -> Result<(), Error> {
 /// * `u64` - The time-stamp counter.
 fn read_tsc() -> u64 {
     unsafe {
-        core::arch::x86_64::_mm_lfence();
-        core::arch::x86_64::_rdtsc()
+        core::arch::x86_64::_mm_lfence(); // Prevents instruction reordering.
+        core::arch::x86_64::_rdtsc() // Reads the time-stamp counter.
     }
 }
 
