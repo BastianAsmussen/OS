@@ -2,6 +2,7 @@ use crate::sys::task::Identifier;
 use alloc::format;
 use alloc::string::String;
 use core::alloc::LayoutError;
+use core::array::TryFromSliceError;
 use core::num::TryFromIntError;
 use thiserror_no_std::Error;
 use x86_64::structures::paging::mapper::MapToError;
@@ -13,6 +14,13 @@ use x86_64::structures::paging::Size4KiB;
 ///
 /// * `Internal` - An internal error.
 /// * `Mapping` - A mapping error.
+/// * `OutOfMemory` - An out of memory error.
+/// * `MemoryLayout` - A memory layout error.
+/// * `InvalidRegister` - An invalid register error.
+/// * `InvalidAddress` - An invalid address error.
+/// * `Conversion` - A conversion error.
+/// * `Task` - A task error.
+/// * `FileSystem` - A file system error.
 #[derive(Error, Debug, Clone)]
 pub enum Error {
     #[error("Internal Error: {0}")]
@@ -25,6 +33,8 @@ pub enum Error {
     MemoryLayout(String),
     #[error("Invalid Register Error: {0}")]
     InvalidRegister(String),
+    #[error("Invalid Address Error: {0}")]
+    InvalidAddress(String),
     #[error("Conversion Error: {0}")]
     Conversion(String),
     #[error("Task Error: {0}")]
@@ -47,6 +57,12 @@ impl From<LayoutError> for Error {
 
 impl From<TryFromIntError> for Error {
     fn from(error: TryFromIntError) -> Self {
+        Self::Conversion(format!("{error:#?}"))
+    }
+}
+
+impl From<TryFromSliceError> for Error {
+    fn from(error: TryFromSliceError) -> Self {
         Self::Conversion(format!("{error:#?}"))
     }
 }
