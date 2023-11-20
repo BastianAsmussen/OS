@@ -11,9 +11,11 @@ use crate::println;
 use crate::sys::time::clock::uptime;
 use crate::sys::time::wait;
 
-pub const BLKSIZE: usize = 512;
+/// The maximum block size of the ATA bus.
+pub const BLOCK_SIZE: usize = 512;
 
 lazy_static! {
+    /// The ATA buses.
     pub static ref BUSES: Mutex<Vec<Bus>> = Mutex::new(Vec::new());
 }
 
@@ -31,16 +33,16 @@ enum Command {
     Write = 0x30,
 }
 
-/// Represents an ID response.
+/// Represents a device type.
 ///
 /// # Variants
 ///
-/// * `Ata(Box<[u16; 256]>)` - The ATA response.
-/// * `Atapi` - The ATAPI response.
-/// * `Sata` - The SATA response.
-/// * `None` - No response.
+/// * `Ata(Box<[u16; 256]>)` - It's an ATA device.
+/// * `Atapi` - It's an ATAPI device.
+/// * `Sata` - It's a SATA device.
+/// * `None` - It's not a recognized device.
 #[derive(Debug)]
-enum IDResponse {
+enum DeviceType {
     Ata(Box<[u16; 256]>),
     Atapi,
     Sata,
@@ -71,6 +73,122 @@ enum Status {
     Busy = 7,
 }
 
+/// Represents a register.
+///
+/// # Variants
+///
+/// * `Data(Port<u16>)` - The data register.
+/// * `Error(PortReadOnly<u8>)` - The error register.
+/// * `Features(PortWriteOnly<u8>)` - The features register.
+/// * `SectorCount(Port<u8>)` - The sector count register.
+/// * `Lba0(Port<u8>)` - The LBA0 register.
+/// * `Lba1(Port<u8>)` - The LBA1 register.
+/// * `Lba2(Port<u8>)` - The LBA2 register.
+/// * `Drive(Port<u8>)` - The drive register.
+/// * `Status(PortReadOnly<u8>)` - The status register.
+/// * `Command(PortWriteOnly<u8>)` - The command register.
+///
+/// * `AlternateStatus(PortReadOnly<u8>)` - The alternate status register.
+/// * `DeviceControl(PortWriteOnly<u8>)` - The device control register.
+/// * `DeviceAddress(PortReadOnly<u8>)` - The device address register.
+#[derive(Debug, Clone)]
+enum Register {
+    Data(Port<u16>),
+    Error(PortReadOnly<u8>),
+    Features(PortWriteOnly<u8>),
+    SectorCount(Port<u8>),
+    Lba0(Port<u8>),
+    Lba1(Port<u8>),
+    Lba2(Port<u8>),
+    Drive(Port<u8>),
+    Status(PortReadOnly<u8>),
+    Command(PortWriteOnly<u8>),
+
+    AlternateStatus(PortReadOnly<u8>),
+    DeviceControl(PortWriteOnly<u8>),
+    DeviceAddress(PortReadOnly<u8>),
+}
+
+impl Register {
+    /// Reads from the register.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<u16, Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the register is write-only.
+    fn read(&mut self) -> Result<u16, Error> {
+        let value = unsafe {
+            match self {
+                Self::Data(port) => port.read(),
+
+                Self::Error(port)
+                | Self::DeviceAddress(port)
+                | Self::Status(port)
+                | Self::AlternateStatus(port) => port.read().into(),
+
+                Self::SectorCount(port)
+                | Self::Lba0(port)
+                | Self::Lba1(port)
+                | Self::Lba2(port)
+                | Self::Drive(port) => port.read().into(),
+
+                Self::Features(_) | Self::Command(_) | Self::DeviceControl(_) => {
+                    return Err(Error::InvalidRegister(
+                        "Cannot read from write-only port!".into(),
+                    ))
+                }
+            }
+        };
+
+        Ok(value)
+    }
+
+    /// Writes to the register.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to write.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the register is read-only.
+    fn write(&mut self, value: u16) -> Result<(), Error> {
+        unsafe {
+            match self {
+                Self::Data(port) => port.write(value),
+
+                Self::Features(port) | Self::Command(port) | Self::DeviceControl(port) => {
+                    port.write(u8::try_from(value)?)
+                }
+
+                Self::SectorCount(port)
+                | Self::Lba0(port)
+                | Self::Lba1(port)
+                | Self::Lba2(port)
+                | Self::Drive(port) => port.write(u8::try_from(value)?),
+
+                Self::Error(_)
+                | Self::Status(_)
+                | Self::AlternateStatus(_)
+                | Self::DeviceAddress(_) => {
+                    return Err(Error::InvalidRegister(
+                        "Cannot write to read-only port!".into(),
+                    ))
+                }
+            }
+        };
+
+        Ok(())
+    }
+}
+
 /// The ATA bus.
 ///
 /// # Fields
@@ -78,39 +196,39 @@ enum Status {
 /// * `id` - The ID of the bus.
 /// * `irq` - The IRQ of the bus.
 ///
-/// * `data_reg` - The data register.
-/// * `err_reg` - The error register.
-/// * `features_reg` - The features register.
-/// * `sector_count_reg` - The sector count register.
-/// * `lba0_reg` - The LBA0 register.
-/// * `lba1_reg` - The LBA1 register.
-/// * `lba2_reg` - The LBA2 register.
-/// * `drive_reg` - The drive register.
-/// * `status_reg` - The status register.
-/// * `cmd_reg` - The command register.
+/// * `data` - The data register.
+/// * `error` - The error register.
+/// * `features` - The features register.
+/// * `sector_count` - The sector count register.
+/// * `lba0` - The LBA0 register.
+/// * `lba1` - The LBA1 register.
+/// * `lba2` - The LBA2 register.
+/// * `drive` - The drive register.
+/// * `status` - The status register.
+/// * `command` - The command register.
 ///
-/// * `alt_status_reg` - The alternate status register.
-/// * `device_ctrl_reg` - The device control register.
-/// * `device_addr_reg` - The device address register.
+/// * `alternate_status` - The alternate status register.
+/// * `device_address` - The device address register.
+/// * `device_control` - The device control register.
 #[derive(Debug, Clone)]
 pub struct Bus {
     id: u8,
     irq: u8,
 
-    data_reg: Port<u16>,
-    err_reg: PortReadOnly<u8>,
-    features_reg: PortWriteOnly<u8>,
-    sector_count_reg: Port<u8>,
-    lba0_reg: Port<u8>,
-    lba1_reg: Port<u8>,
-    lba2_reg: Port<u8>,
-    drive_reg: Port<u8>,
-    status_reg: PortReadOnly<u8>,
-    cmd_reg: PortWriteOnly<u8>,
+    data: Register,
+    error: Register,
+    features: Register,
+    sector_count: Register,
+    lba0: Register,
+    lba1: Register,
+    lba2: Register,
+    drive: Register,
+    status: Register,
+    command: Register,
 
-    alt_status_reg: PortReadOnly<u8>,
-    device_ctrl_reg: PortWriteOnly<u8>,
-    device_addr_reg: PortReadOnly<u8>,
+    alternate_status: Register,
+    device_address: Register,
+    device_control: Register,
 }
 
 impl Bus {
@@ -132,20 +250,20 @@ impl Bus {
             id,
             irq,
 
-            data_reg: Port::new(io_base),
-            err_reg: PortReadOnly::new(io_base + 1),
-            features_reg: PortWriteOnly::new(io_base + 1),
-            sector_count_reg: Port::new(io_base + 2),
-            lba0_reg: Port::new(io_base + 3),
-            lba1_reg: Port::new(io_base + 4),
-            lba2_reg: Port::new(io_base + 5),
-            drive_reg: Port::new(io_base + 6),
-            status_reg: PortReadOnly::new(io_base + 7),
-            cmd_reg: PortWriteOnly::new(io_base + 7),
+            data: Register::Data(Port::new(io_base)),
+            error: Register::Error(PortReadOnly::new(io_base + 1)),
+            features: Register::Features(PortWriteOnly::new(io_base + 1)),
+            sector_count: Register::SectorCount(Port::new(io_base + 2)),
+            lba0: Register::Lba0(Port::new(io_base + 3)),
+            lba1: Register::Lba1(Port::new(io_base + 4)),
+            lba2: Register::Lba2(Port::new(io_base + 5)),
+            drive: Register::Drive(Port::new(io_base + 6)),
+            status: Register::Status(PortReadOnly::new(io_base + 7)),
+            command: Register::Command(PortWriteOnly::new(io_base + 7)),
 
-            alt_status_reg: PortReadOnly::new(ctrl_base),
-            device_addr_reg: PortReadOnly::new(ctrl_base),
-            device_ctrl_reg: PortWriteOnly::new(ctrl_base + 1),
+            alternate_status: Register::AlternateStatus(PortReadOnly::new(ctrl_base)),
+            device_address: Register::DeviceAddress(PortReadOnly::new(ctrl_base)),
+            device_control: Register::DeviceControl(PortWriteOnly::new(ctrl_base)),
         }
     }
 
@@ -153,38 +271,28 @@ impl Bus {
     ///
     /// # Returns
     ///
-    /// * `bool` - true if the bus is floating, false otherwise.
-    fn floating_bus(&mut self) -> bool {
-        let status = self.status();
+    /// * `Result<bool, Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the status register is invalid.
+    fn floating_bus(&mut self) -> Result<bool, Error> {
+        let status = self.status.read()?;
 
-        status == 0xFF || status == 0x7F
+        Ok(status == 0xFF || status == 0x7F)
     }
 
     /// Clears the interrupt.
     ///
     /// # Returns
     ///
-    /// * `u8` - The status register.
-    fn clear_interrupt(&mut self) -> u8 {
-        unsafe { self.status_reg.read() }
-    }
-
-    /// Reads the data register.
+    /// * `Result<u8, Error>` - The result of the operation.
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// * `u16` - The PIO data bytes.
-    fn read_data(&mut self) -> u16 {
-        unsafe { self.data_reg.read() }
-    }
-
-    /// Writes to the data register.
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - The data to write.
-    fn write_data(&mut self, data: u16) {
-        unsafe { self.data_reg.write(data) }
+    /// * If the status register is invalid.
+    fn clear_interrupt(&mut self) -> Result<u16, Error> {
+        self.status.read()
     }
 
     /// Selects a drive.
@@ -201,13 +309,12 @@ impl Bus {
     ///
     /// * If the ATA times out.
     /// * If the ATA drive does not exist.
+    /// * If the `drive` register is read-only.
     fn select_drive(&mut self, drive: u8) -> Result<(), Error> {
         self.poll(Status::Busy, false)?;
         self.poll(Status::DataRequest, false)?;
 
-        unsafe {
-            self.drive_reg.write(0xA0 | drive << 4);
-        }
+        self.drive.write(u16::from(0xA0 | drive << 4))?;
 
         // Wait for 400 nanoseconds.
         wait(400);
@@ -222,9 +329,13 @@ impl Bus {
     ///
     /// # Returns
     ///
-    /// * `bool` - true if the bus has an error, false otherwise.
-    fn error(&mut self) -> bool {
-        self.status().get_bit(Status::Error as usize)
+    /// * `Result<bool, Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the status register is write-only.
+    fn error(&mut self) -> Result<bool, Error> {
+        Ok(self.status.read()?.get_bit(Status::Error as usize))
     }
 
     /// Gets the ID of the bus.
@@ -242,53 +353,42 @@ impl Bus {
     /// * If the ATA drive does not exist.
     /// * If the ATA times out.
     /// * If the ATA drive is not a valid drive.
-    fn identify_drive(&mut self, drive: u8) -> Result<IDResponse, Error> {
-        if self.floating_bus() {
-            return Ok(IDResponse::None);
+    fn identify_drive(&mut self, drive: u8) -> Result<DeviceType, Error> {
+        if self.floating_bus()? {
+            return Ok(DeviceType::None);
         }
 
         // Select the drive.
         self.select_drive(drive)?;
         // Clear the registers.
-        self.write_cmd_params(drive, 0);
+        self.write_cmd_params(drive, 0)?;
 
         // Read the status register.
-        let status = self.status();
+        let status = self.status.read()?;
         // If the drive does not exist.
         if status == 0 {
-            return Ok(IDResponse::None);
+            return Ok(DeviceType::None);
         }
 
         // Poll the status register until busy clears.
         self.poll(Status::Busy, false)?;
 
         // Determine if the drive type.
-        match (self.lba1(), self.lba2()) {
-            (0x00, 0x00) => Ok(IDResponse::Ata(Box::from(
-                [(); 256].map(|()| self.read_data()),
-            ))),
-            (0x14, 0xEB) => Ok(IDResponse::Atapi),
-            (0x3C, 0xC3) => Ok(IDResponse::Sata),
-            (_, _) => Err(Error::Internal("Unknown ATA drive!".into())),
-        }
-    }
+        let device_type = match (self.lba1.read()?, self.lba2.read()?) {
+            (0x00, 0x00) => DeviceType::Ata({
+                let mut buffer = Box::new([0; 256]);
+                for chunk in buffer.iter_mut() {
+                    *chunk = self.data.read()?;
+                }
 
-    /// Reads the LBA1 register.
-    ///
-    /// # Returns
-    ///
-    /// * `u8` - The LBA1 register.
-    fn lba1(&mut self) -> u8 {
-        unsafe { self.lba1_reg.read() }
-    }
+                buffer
+            }),
+            (0x14, 0xEB) => DeviceType::Atapi,
+            (0x3C, 0xC3) => DeviceType::Sata,
+            (_, _) => return Err(Error::Internal("Unknown ATA drive!".into())),
+        };
 
-    /// Reads the LBA2 register.
-    ///
-    /// # Returns
-    ///
-    /// * `u8` - The LBA2 register.
-    fn lba2(&mut self) -> u8 {
-        unsafe { self.lba2_reg.read() }
+        Ok(device_type)
     }
 
     /// Polls the status register.
@@ -305,10 +405,11 @@ impl Bus {
     /// # Errors
     ///
     /// * If the ATA times out.
+    /// * If the status register is write-only.
     fn poll(&mut self, bit: Status, value: bool) -> Result<(), Error> {
         let start = uptime();
 
-        while self.status().get_bit(bit as usize) != value {
+        while self.status.read()?.get_bit(bit as usize) != value {
             if uptime() - start > 1.0 {
                 return Err(Error::Internal("ATA timeout.".into()));
             }
@@ -340,12 +441,12 @@ impl Bus {
         self.write_cmd(Command::Read)?;
 
         for chunk in buffer.chunks_mut(2) {
-            let data = self.read_data().to_le_bytes();
+            let data = self.data.read()?.to_le_bytes();
 
             chunk.clone_from_slice(&data);
         }
 
-        if self.error() {
+        if self.error()? {
             return Err(Error::Internal("ATA read error.".into()));
         }
 
@@ -353,14 +454,22 @@ impl Bus {
     }
 
     /// Resets the bus.
-    fn reset(&mut self) {
-        unsafe {
-            self.device_ctrl_reg.write(4); // set SRST.
-            wait(5); // Wait for 5 nanoseconds.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the device control register is write-only.
+    fn reset(&mut self) -> Result<(), Error> {
+        self.device_control.write(4)?; // set SRST.
+        wait(5); // Wait for 5 nanoseconds.
 
-            self.device_ctrl_reg.write(0); // Clear control register.
-            wait(2_000); // Wait for 2 microseconds.
-        }
+        self.device_control.write(0)?; // Clear control register.
+        wait(2_000); // Wait for 2 microseconds.
+
+        Ok(())
     }
 
     /// Sets up PIO.
@@ -380,18 +489,9 @@ impl Bus {
     /// * If the ATA times out.
     fn setup_pio(&mut self, drive: u8, block: u32) -> Result<(), Error> {
         self.select_drive(drive)?;
-        self.write_cmd_params(drive, block);
+        self.write_cmd_params(drive, block)?;
 
         Ok(())
-    }
-
-    /// Reads the status register.
-    ///
-    /// # Returns
-    ///
-    /// * `u8` - The status register.
-    fn status(&mut self) -> u8 {
-        unsafe { self.alt_status_reg.read() }
     }
 
     /// Writes to the bus.
@@ -419,10 +519,10 @@ impl Bus {
         for chunk in buffer.chunks(2) {
             let data = u16::from_le_bytes(chunk.try_into()?);
 
-            self.write_data(data);
+            self.data.write(data)?;
         }
 
-        if self.error() {
+        if self.error()? {
             return Err(Error::Internal("ATA write error!".into()));
         }
 
@@ -444,19 +544,17 @@ impl Bus {
     /// * If the drive does not exist.
     /// * If the ATA times out.
     fn write_cmd(&mut self, cmd: Command) -> Result<(), Error> {
-        unsafe {
-            self.cmd_reg.write(cmd as u8);
-        }
+        self.command.write(cmd as u16)?;
 
         // Wait for 400 nanoseconds.
         wait(400);
 
         // Ignore first read (false positive).
-        self.status();
-        self.clear_interrupt();
+        self.status.read()?;
+        self.clear_interrupt()?;
 
         // If drive does not exist.
-        if self.status() == 0 {
+        if self.status.read()? == 0 {
             return Err(Error::Internal("ATA drive does not exist!".into()));
         }
 
@@ -472,7 +570,15 @@ impl Bus {
     ///
     /// * `drive` - The drive to write to.
     /// * `block` - The block to write to.
-    fn write_cmd_params(&mut self, drive: u8, block: u32) {
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Error>` - The result of the operation.
+    ///
+    /// # Errors
+    ///
+    /// * If the sector count register is read-only.
+    fn write_cmd_params(&mut self, drive: u8, block: u32) -> Result<(), Error> {
         let lba = true;
         let mut bytes = block.to_le_bytes();
 
@@ -481,13 +587,13 @@ impl Bus {
         bytes[3].set_bit(6, lba);
         bytes[3].set_bit(7, true);
 
-        unsafe {
-            self.sector_count_reg.write(1);
-            self.lba0_reg.write(bytes[0]);
-            self.lba1_reg.write(bytes[1]);
-            self.lba2_reg.write(bytes[2]);
-            self.drive_reg.write(bytes[3]);
-        }
+        self.sector_count.write(1)?;
+        self.lba0.write(u16::from(bytes[0]))?;
+        self.lba1.write(u16::from(bytes[1]))?;
+        self.lba2.write(u16::from(bytes[2]))?;
+        self.drive.write(u16::from(bytes[3]))?;
+
+        Ok(())
     }
 }
 
@@ -500,9 +606,9 @@ pub fn init() {
         buses.push(Bus::new(1, 15, 0x170, 0x376));
     }
 
-    for drive in ls() {
+    for drive in list_drives() {
         println!(
-            "[INFO]: ATA {bus} {disk} {drive:#?}",
+            "[INFO]: => ATA (Bus: {bus}, Disk: {disk})",
             bus = drive.bus,
             disk = drive.disk
         );
@@ -550,7 +656,7 @@ impl Drive {
     ///
     /// * If the block size is not a valid u32.
     pub fn block_size(&self) -> Result<u32, Error> {
-        Ok(u32::try_from(BLKSIZE)?)
+        Ok(u32::try_from(BLOCK_SIZE)?)
     }
 
     /// Opens a drive.
@@ -567,7 +673,7 @@ impl Drive {
         let mut buses = BUSES.lock();
 
         // Identify the drive.
-        let Ok(IDResponse::Ata(result)) = buses[bus as usize].identify_drive(disk) else {
+        let Ok(DeviceType::Ata(result)) = buses[bus as usize].identify_drive(disk) else {
             return None;
         };
 
@@ -614,7 +720,7 @@ impl Drive {
 ///
 /// * `Vec<Drive>` - The drives.
 #[must_use]
-pub fn ls() -> Vec<Drive> {
+pub fn list_drives() -> Vec<Drive> {
     let mut drives = Vec::new();
     for bus in 0..2 {
         for disk in 0..2 {

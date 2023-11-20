@@ -2,7 +2,7 @@ use crate::errors::Error;
 use crate::sys::task::executor::Executor;
 use crate::sys::task::{keyboard, Task};
 use crate::sys::{gdt, idt, pic, time};
-use crate::{dev, KERNEL_VERSION};
+use crate::{dev, fs, KERNEL_VERSION};
 use crate::{mem, println};
 use bootloader::BootInfo;
 
@@ -51,11 +51,11 @@ pub fn start_kernel(boot_info: &'static BootInfo) -> Result<Executor, Error> {
 
     // Initialize the device drivers.
     println!("[INFO]: Initializing device drivers...");
-    dev::init()?;
+    dev::init();
 
-    // // Initialize the file system.
-    // println!("[INFO]: Initializing the file system...");
-    // fs::init()?;
+    // Initialize the file system.
+    println!("[INFO]: Initializing the file system...");
+    fs::init();
 
     // Initialize the task executor.
     println!("[INFO]: Setting up the task executor...");
