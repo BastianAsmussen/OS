@@ -1,7 +1,7 @@
+use crate::println;
 use crate::sys::pic::{PICS, PIC_1_OFFSET, PIC_2_OFFSET};
 use crate::sys::time::rtc::RTC;
 use crate::sys::{gdt, time};
-use crate::{hlt_loop, println};
 use core::sync::atomic::Ordering;
 use lazy_static::lazy_static;
 use x86_64::instructions::port::Port;
@@ -53,19 +53,62 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
-        // Set the breakpoint handler.
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
-
+        // Set the divide error handler.
+        idt.divide_error.set_handler_fn(divide_error_handler);
+        // Set the debug handler.
+        idt.debug.set_handler_fn(debug_handler);
+        // Set the non-maskable interrupt handler.
+        idt.non_maskable_interrupt.set_handler_fn(non_maskable_interrupt_handler);
+        // Set the overflow handler.
+        idt.overflow.set_handler_fn(overflow_handler);
+        // Set the bound range exceeded handler.
+        idt.bound_range_exceeded.set_handler_fn(bound_range_exceeded_handler);
+        // Set the invalid opcode handler.
+        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
+        // Set the device not available handler.
+        idt.device_not_available.set_handler_fn(device_not_available_handler);
+        // Set the double fault handler.
         unsafe {
-            // Set the double fault handler.
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
-
-            // Set the page fault handler.
-            idt.page_fault
-                .set_handler_fn(page_fault_handler);
-        };
+        }
+        // Set the invalid TSS handler.
+        idt.invalid_tss.set_handler_fn(invalid_tss_handler);
+        // Set the segment not present handler.
+        idt.segment_not_present.set_handler_fn(segment_not_present_handler);
+        // Set the stack segment fault handler.
+        idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
+        // Set the general protection fault handler.
+        idt.general_protection_fault
+            .set_handler_fn(general_protection_fault_handler);
+        // Set the page fault handler.
+        idt.page_fault
+            .set_handler_fn(page_fault_handler);
+        // Set the x87 floating point handler.
+        idt.x87_floating_point.set_handler_fn(x87_floating_point_handler);
+        // Set the alignment check handler.
+        idt.alignment_check.set_handler_fn(alignment_check_handler);
+        // Set the machine check handler.
+        idt.machine_check.set_handler_fn(machine_check_handler);
+        // Set the SIMD floating point handler.
+        idt.simd_floating_point.set_handler_fn(simd_floating_point_handler);
+        // Set the virtualization handler.
+        idt.virtualization.set_handler_fn(virtualization_handler);
+        // Set the control protection exception handler.
+        idt.cp_protection_exception
+            .set_handler_fn(cp_protection_exception_handler);
+        // Set the hypervisor injection exception handler.
+        idt.hv_injection_exception
+            .set_handler_fn(hv_injection_exception_handler);
+        // Set the VMM (Virtual Machine Monitor) communication exception handler.
+        idt.vmm_communication_exception
+            .set_handler_fn(vmm_communication_exception_handler);
+        // Set the security exception handler.
+        idt.security_exception
+            .set_handler_fn(security_exception_handler);
+        // Set the breakpoint handler.
+        idt.breakpoint.set_handler_fn(breakpoint_handler);
 
         // Add the interrupt handlers.
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
@@ -76,9 +119,57 @@ lazy_static! {
     };
 }
 
-extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
     println!(
-        "Breakpoint Exception!\
+        "Divide Error Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Debug Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn non_maskable_interrupt_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Non-Maskable Interrupt Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Overflow Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn bound_range_exceeded_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Bound Range Exceeded Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Invalid Opcode Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Device Not Available Exception!\
         \nStack Frame: {frame:#?}",
         frame = stack_frame
     );
@@ -90,6 +181,55 @@ extern "x86-interrupt" fn double_fault_handler(
 ) -> ! {
     panic!(
         "Double Fault Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn invalid_tss_handler(stack_frame: InterruptStackFrame, error_code: u64) {
+    println!(
+        "Invalid TSS Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn segment_not_present_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "Segment Not Present Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn stack_segment_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "Stack Segment Fault Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "General Protection Fault Exception!\
         \nError Code: {code}\
         \nStack Frame: {frame:#?}",
         code = error_code,
@@ -110,8 +250,106 @@ extern "x86-interrupt" fn page_fault_handler(
         code = error_code,
         frame = stack_frame
     );
+}
 
-    hlt_loop();
+extern "x86-interrupt" fn x87_floating_point_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "x87 Floating Point Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn alignment_check_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "Alignment Check Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
+    panic!(
+        "Machine Check Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "SIMD Floating Point Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Virtualization Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn cp_protection_exception_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "Control Protection Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn hv_injection_exception_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Hypervisor Injection Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn vmm_communication_exception_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "VMM Communication Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn security_exception_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    println!(
+        "Security Exception!\
+        \nError Code: {code}\
+        \nStack Frame: {frame:#?}",
+        code = error_code,
+        frame = stack_frame
+    );
+}
+
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    println!(
+        "Breakpoint Exception!\
+        \nStack Frame: {frame:#?}",
+        frame = stack_frame
+    );
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
