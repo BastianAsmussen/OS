@@ -33,8 +33,8 @@ pub enum Error {
     MemoryLayout(String),
     #[error("Invalid Register Error: {0}")]
     InvalidRegister(String),
-    #[error("Invalid Address Error: {0}")]
-    InvalidAddress(String),
+    #[error("ATA Error: {0}")]
+    ATA(String),
     #[error("Conversion Error: {0}")]
     Conversion(String),
     #[error("Task Error: {0}")]
