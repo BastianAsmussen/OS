@@ -20,7 +20,7 @@ run-command = ["qemu-system-x86_64", "-drive", "format=raw,media=cdrom,readonly=
 
 [dependencies]
 # Bootloader.
-bootloader = { version = "0.9.23", features = ["map_physical_memory"] }
+bootloader = { version = "0.9.29", features = ["map_physical_memory"] }
 # Volatile memory access.
 volatile = "0.3.0"
 # Spinlocks.
