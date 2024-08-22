@@ -16,45 +16,38 @@ My very own OS written in Rust.
 
 ## Cloning
 You can clone the repository by running the following command:
-```bash
-$ git clone https://github.com/BastianAsmussen/ros
+```sh
+$ git clone https://github.com/BastianAsmussen/ROS.git
 ```
 
 ## Compilation
-When building the OS, I recommend using [rustup](https://rustup.rs/), as it makes it easier to manage Rust versions and targets.
+When building the OS, I recommend using [devenv](https://devenv.sh/).
 You can compile the OS by running the following command:
-```bash
+```sh
 $ cargo build --release
 ```
 
 ## Running
-You must have the `bootimage` crate installed to generate the bootable disk image, you can install it by running the following command:
-```bash
+
+You must have the `bootimage` crate installed to generate the bootable disk image, if using [devenv](https://devenv.sh), you don't need to do anything else.  
+Otherwise, you can install it by running the following command:
+```sh
 $ cargo install bootimage
 ```
 
 ### QEMU
 You can run the OS in [QEMU](https://www.qemu.org/) by running the following command:
-```bash
+```sh
 $ cargo run
 ```
+
 ### Hardware
 You can run the OS on real hardware by running the following commands:
 
 #### Linux
-```bash
+```sh
 $ cargo bootimage --release
-$ dd if=target/x86_64-ros/release/bootimage-os.bin of=/dev/sdX && sync
+# dd if=target/x86_64-ros/release/bootimage-os.bin of=/dev/sdX && sync
 ```
 Where `/dev/sdX` is the device name of your USB drive.
 
----
-
-#### Windows
-```ps
-PS> cargo bootimage --release
-```
-Then use [Rufus](https://rufus.ie/) to flash the image to your USB drive.
-
-# License
-This project is licensed under the [MIT License](LICENSE).

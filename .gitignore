@@ -1,6 +1,12 @@
 # Generated files
 /target/
 
-# IntelliJ IDEA files.
-.idea/
-*.iml
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
